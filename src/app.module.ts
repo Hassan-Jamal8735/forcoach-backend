@@ -10,6 +10,7 @@ import { EventsModule } from './events/events.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IcsFeedsModule } from './ics-feeds/ics-feeds.module';
+import { EarningsModule } from './earnings/earnings.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { IcsFeedsModule } from './ics-feeds/ics-feeds.module';
     GoogleCalendarModule,
     NotificationsModule,
     IcsFeedsModule,
+    EarningsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

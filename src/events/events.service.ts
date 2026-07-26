@@ -17,6 +17,21 @@ function dedupeKey(row: { title: string; startTime: string; endTime: string }) {
   return `${row.title.trim().toLowerCase()}|${new Date(row.startTime).toISOString()}|${new Date(row.endTime).toISOString()}`;
 }
 
+/**
+ * status is derived from studio_id (assigned/unassigned) rather than trusted
+ * verbatim from the caller, so a studio_id can never be set on an event
+ * without it actually counting toward earnings. "excluded" is the one
+ * explicit override callers can still request (e.g. the exclude toggle),
+ * since it's a deliberate choice independent of studio assignment.
+ */
+function deriveStatus(
+  studioId: string | null | undefined,
+  requestedStatus: string | undefined,
+): 'assigned' | 'unassigned' | 'excluded' {
+  if (requestedStatus === 'excluded') return 'excluded';
+  return studioId ? 'assigned' : 'unassigned';
+}
+
 function toInsertRow(dto: CreateEventDto, userId: string): EventInsert {
   return {
     user_id: userId,
@@ -27,13 +42,16 @@ function toInsertRow(dto: CreateEventDto, userId: string): EventInsert {
     end_time: dto.endTime,
     source: dto.source ?? 'manual',
     studio_id: dto.studioId ?? null,
-    status: dto.status ?? 'unassigned',
+    status: deriveStatus(dto.studioId, dto.status),
     external_id: dto.externalId,
     notes: dto.notes,
   };
 }
 
-function toUpdateRow(dto: UpdateEventDto): EventUpdate {
+function toUpdateRow(
+  dto: UpdateEventDto,
+  existingStudioId: string | null,
+): EventUpdate {
   const row: EventUpdate = {};
   if (dto.title !== undefined) row.title = dto.title;
   if (dto.description !== undefined) row.description = dto.description;
@@ -42,9 +60,14 @@ function toUpdateRow(dto: UpdateEventDto): EventUpdate {
   if (dto.endTime !== undefined) row.end_time = dto.endTime;
   if (dto.source !== undefined) row.source = dto.source;
   if (dto.studioId !== undefined) row.studio_id = dto.studioId ?? null;
-  if (dto.status !== undefined) row.status = dto.status;
   if (dto.externalId !== undefined) row.external_id = dto.externalId;
   if (dto.notes !== undefined) row.notes = dto.notes;
+
+  if (dto.studioId !== undefined || dto.status !== undefined) {
+    const effectiveStudioId =
+      dto.studioId !== undefined ? dto.studioId : existingStudioId;
+    row.status = deriveStatus(effectiveStudioId, dto.status);
+  }
   return row;
 }
 
@@ -77,10 +100,20 @@ export class EventsService {
   }
 
   async update(userId: string, id: string, dto: UpdateEventDto) {
-    const { data, error } = await this.supabaseService
-      .getClient()
+    const client = this.supabaseService.getClient();
+
+    const { data: existing, error: existingError } = await client
       .from('events')
-      .update(toUpdateRow(dto))
+      .select('studio_id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) throw new NotFoundException('Event not found');
+
+    const { data, error } = await client
+      .from('events')
+      .update(toUpdateRow(dto, existing.studio_id))
       .eq('id', id)
       .eq('user_id', userId)
       .select()
