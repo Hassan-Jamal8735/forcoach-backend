@@ -54,14 +54,19 @@ export class InvoicesService {
 
   async findOne(userId: string, id: string) {
     const invoice = await this.getInvoice(userId, id);
-    const { data: lineItems, error } = await this.supabaseService
+    const lineItems = await this.getLineItems(id);
+    return { invoice, lineItems };
+  }
+
+  private async getLineItems(invoiceId: string) {
+    const { data, error } = await this.supabaseService
       .getClient()
       .from('invoice_line_items')
       .select('*')
-      .eq('invoice_id', id)
+      .eq('invoice_id', invoiceId)
       .order('event_date', { ascending: true });
     if (error) throw error;
-    return { invoice, lineItems };
+    return data;
   }
 
   async create(userId: string, dto: CreateInvoiceDto) {
