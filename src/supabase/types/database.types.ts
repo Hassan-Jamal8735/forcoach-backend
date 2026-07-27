@@ -225,6 +225,131 @@ export type Database = {
         };
         Relationships: [];
       };
+      invoice_line_items: {
+        Row: {
+          amount: number;
+          compensation_type: string;
+          created_at: string;
+          event_date: string;
+          event_id: string | null;
+          hours: number;
+          id: string;
+          invoice_id: string;
+          rate: number;
+          title: string;
+          user_id: string;
+        };
+        Insert: {
+          amount: number;
+          compensation_type: string;
+          created_at?: string;
+          event_date: string;
+          event_id?: string | null;
+          hours: number;
+          id?: string;
+          invoice_id: string;
+          rate: number;
+          title: string;
+          user_id: string;
+        };
+        Update: {
+          amount?: number;
+          compensation_type?: string;
+          created_at?: string;
+          event_date?: string;
+          event_id?: string | null;
+          hours?: number;
+          id?: string;
+          invoice_id?: string;
+          rate?: number;
+          title?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'invoice_line_items_event_id_fkey';
+            columns: ['event_id'];
+            isOneToOne: false;
+            referencedRelation: 'events';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'invoice_line_items_invoice_id_fkey';
+            columns: ['invoice_id'];
+            isOneToOne: false;
+            referencedRelation: 'invoices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      invoices: {
+        Row: {
+          created_at: string;
+          due_date: string;
+          id: string;
+          invoice_number: string | null;
+          issue_date: string | null;
+          notes: string | null;
+          period_end: string;
+          period_start: string;
+          status: string;
+          studio_id: string | null;
+          studio_name: string;
+          subtotal: number;
+          total: number;
+          updated_at: string;
+          user_id: string;
+          vat_amount: number;
+          vat_rate: number | null;
+        };
+        Insert: {
+          created_at?: string;
+          due_date: string;
+          id?: string;
+          invoice_number?: string | null;
+          issue_date?: string | null;
+          notes?: string | null;
+          period_end: string;
+          period_start: string;
+          status?: string;
+          studio_id?: string | null;
+          studio_name: string;
+          subtotal?: number;
+          total?: number;
+          updated_at?: string;
+          user_id: string;
+          vat_amount?: number;
+          vat_rate?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          due_date?: string;
+          id?: string;
+          invoice_number?: string | null;
+          issue_date?: string | null;
+          notes?: string | null;
+          period_end?: string;
+          period_start?: string;
+          status?: string;
+          studio_id?: string | null;
+          studio_name?: string;
+          subtotal?: number;
+          total?: number;
+          updated_at?: string;
+          user_id?: string;
+          vat_amount?: number;
+          vat_rate?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'invoices_studio_id_fkey';
+            columns: ['studio_id'];
+            isOneToOne: false;
+            referencedRelation: 'studios';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       studios: {
         Row: {
           address: string | null;
