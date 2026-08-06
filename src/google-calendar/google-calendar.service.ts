@@ -14,7 +14,12 @@ import type {
 } from '../supabase/types/database.types';
 
 const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
-const SYNC_LOOKBACK_DAYS = 90;
+// Widened from 90 -> 180 days: this window is re-fetched on every sync (not just
+// the first one), so a longer lookback gives more headroom to recover history if
+// a connection is ever dropped and reconnected later. Events already imported are
+// never deleted by sync regardless of this window (see the insert/update-only
+// logic below), so this only affects how far back a fresh/reconnected sync reaches.
+const SYNC_LOOKBACK_DAYS = 180;
 const SYNC_LOOKAHEAD_DAYS = 180;
 
 type CalendarConnectionInsert = TablesInsert<'calendar_connections'>;
