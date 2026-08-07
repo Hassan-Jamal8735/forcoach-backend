@@ -43,7 +43,9 @@ services:
       NODE_ENV: production
       PORT: "3001"
       # Reaches Supabase over the internal Docker network, not the public URL.
-      SUPABASE_URL: http://kong:8000
+      # Addressed by CONTAINER name, not service name: Compose service aliases
+      # are scoped to their own project, and Supabase runs as a separate one.
+      SUPABASE_URL: http://supabase-kong:8000
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       WEB_ORIGIN: ${NEXT_PUBLIC_SITE_URL}

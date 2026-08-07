@@ -68,6 +68,13 @@ overrides = {
     'SUPABASE_PUBLIC_URL':      'https://db.forcoach.io',
     'ADDITIONAL_REDIRECT_URLS': 'https://forcoach.io/auth/callback',
 
+    # Bind Kong to loopback only. Docker publishes ports straight into iptables,
+    # which BYPASSES ufw — left at the default these would be open to the
+    # internet. Caddy reaches Kong over the Docker network instead, so nothing
+    # needs to be published publicly.
+    'KONG_HTTP_PORT':  '127.0.0.1:8000',
+    'KONG_HTTPS_PORT': '127.0.0.1:8443',
+
     # auth behaviour
     'DISABLE_SIGNUP':           'false',
     'ENABLE_EMAIL_SIGNUP':      'true',

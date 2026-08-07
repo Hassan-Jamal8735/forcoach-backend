@@ -28,5 +28,6 @@ www.{$SITE_DOMAIN} {
 # reach it over an SSH tunnel instead (see deploy README).
 {$SUPABASE_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy kong:8000
+	# Container name, not service name — Supabase is a separate Compose project.
+	reverse_proxy supabase-kong:8000
 }
