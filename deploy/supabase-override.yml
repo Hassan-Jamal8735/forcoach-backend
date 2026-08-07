@@ -1,0 +1,22 @@
+# Supabase self-hosted overrides for FORCOACH.
+#
+# Copy to /opt/forcoach/supabase/docker-compose.override.yml — Docker Compose
+# picks that filename up automatically alongside docker-compose.yml.
+#
+# Why this exists: the upstream compose file does not pass any
+# GOTRUE_EXTERNAL_GOOGLE_* variables through to the auth service, so
+# "Continue with Google" silently fails without this. Studio is also bound to
+# localhost here so the admin UI isn't exposed to the internet.
+
+services:
+  auth:
+    environment:
+      GOTRUE_EXTERNAL_GOOGLE_ENABLED: "true"
+      GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: https://db.forcoach.io/auth/v1/callback
+
+  # Reachable only through an SSH tunnel, never from the public internet.
+  studio:
+    ports:
+      - "127.0.0.1:3001:3000"
