@@ -68,6 +68,12 @@ overrides = {
     'SUPABASE_PUBLIC_URL':      'https://db.forcoach.io',
     'ADDITIONAL_REDIRECT_URLS': 'https://forcoach.io/auth/callback',
 
+    # Upstream ships COMPOSE_FILE=docker-compose.yml, which tells Compose to use
+    # exactly that file — silently disabling the automatic pickup of
+    # docker-compose.override.yml. Our Google sign-in config lives in the
+    # override, so it must be listed explicitly here or it is ignored.
+    'COMPOSE_FILE': 'docker-compose.yml:docker-compose.override.yml',
+
     # Bind Kong to loopback only. Docker publishes ports straight into iptables,
     # which BYPASSES ufw — left at the default these would be open to the
     # internet. Caddy reaches Kong over the Docker network instead, so nothing

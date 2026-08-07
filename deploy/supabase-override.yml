@@ -15,6 +15,10 @@ services:
       GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOTRUE_EXTERNAL_GOOGLE_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI: https://db.forcoach.io/auth/v1/callback
+      # Silences "external host not in GOTRUE_MAILER_EXTERNAL_HOSTS" and lets
+      # GoTrue trust the forwarded host when building confirmation links.
+      GOTRUE_MAILER_EXTERNAL_HOSTS: db.forcoach.io
+      GOTRUE_API_EXTERNAL_URL: https://db.forcoach.io
 
   # Reachable only through an SSH tunnel, never from the public internet.
   studio:
