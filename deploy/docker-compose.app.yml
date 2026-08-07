@@ -1,0 +1,93 @@
+# FORCOACH application stack (frontend + backend + reverse proxy).
+#
+# This runs alongside the self-hosted Supabase stack. Supabase's own compose
+# file creates the Docker network; we join it as an external network so our
+# containers can reach Kong/Postgres by service name without going out over
+# the public internet.
+#
+# Usage:
+#   docker compose --env-file ./.env -f docker-compose.app.yml up -d --build
+
+name: forcoach
+
+services:
+  web:
+    build:
+      context: ../forcoach
+      dockerfile: Dockerfile
+      args:
+        # Baked into the client bundle at build time — changing these requires
+        # a rebuild (`--build`), not just a restart.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    expose:
+      - "3000"
+    networks:
+      - forcoach
+
+  api:
+    build:
+      context: ../forcoach-backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      # Reaches Supabase over the internal Docker network, not the public URL.
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      WEB_ORIGIN: ${NEXT_PUBLIC_SITE_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      MAIL_HOST: ${SMTP_HOST}
+      MAIL_PORT: ${SMTP_PORT}
+      MAIL_USERNAME: ${SMTP_USER}
+      MAIL_PASSWORD: ${SMTP_PASS}
+      MAIL_ENCRYPTION: ${SMTP_ENCRYPTION}
+      MAIL_FROM_ADDRESS: ${SMTP_ADMIN_EMAIL}
+      MAIL_FROM_NAME: ${SMTP_SENDER_NAME}
+    expose:
+      - "3001"
+    networks:
+      - forcoach
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+      SUPABASE_DOMAIN: ${SUPABASE_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    networks:
+      - forcoach
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  # Created by the Supabase compose stack. `docker network ls` to confirm the
+  # exact name after starting Supabase, then match it here.
+  forcoach:
+    external: true
+    name: supabase_default

@@ -1,0 +1,32 @@
+# Caddy handles TLS certificates automatically via Let's Encrypt.
+# DNS A records for all three hostnames must point at the VPS *before* the
+# first start, or certificate issuance will fail.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# --- Marketing site + app -------------------------------------------------
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+# Redirect the apex/www variant to the canonical hostname.
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
+
+# --- NestJS API -----------------------------------------------------------
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:3001
+}
+
+# --- Supabase (Kong gateway) ---------------------------------------------
+# Exposes auth + REST. Supabase Studio is deliberately NOT exposed publicly —
+# reach it over an SSH tunnel instead (see deploy README).
+{$SUPABASE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy kong:8000
+}
