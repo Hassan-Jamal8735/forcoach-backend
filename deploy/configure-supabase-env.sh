@@ -66,7 +66,9 @@ overrides = {
     'SITE_URL':                 'https://forcoach.io',
     'API_EXTERNAL_URL':         'https://db.forcoach.io',
     'SUPABASE_PUBLIC_URL':      'https://db.forcoach.io',
-    'ADDITIONAL_REDIRECT_URLS': 'https://forcoach.io/auth/callback',
+    # Wildcard rather than an exact path: recovery links carry a query string
+    # (/auth/callback?redirectTo=...), which an exact-match entry rejects.
+    'ADDITIONAL_REDIRECT_URLS': 'https://forcoach.io/**',
 
     # Upstream ships COMPOSE_FILE=docker-compose.yml, which tells Compose to use
     # exactly that file — silently disabling the automatic pickup of
