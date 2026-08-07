@@ -4,7 +4,10 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# --ignore-scripts is required: package.json has a "postinstall": "npm run build"
+# hook, which would run `nest build` here — before any source or tsconfig.json
+# has been copied — and fail. The build stage runs the compile explicitly.
+RUN npm ci --ignore-scripts
 
 # ---- build ---------------------------------------------------------------
 FROM node:22-alpine AS build
