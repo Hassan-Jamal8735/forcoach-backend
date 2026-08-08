@@ -170,6 +170,37 @@ export class GoogleCalendarService {
     return this.sync(userId);
   }
 
+  /**
+   * Changes the studio that newly-synced events are assigned to. Only affects
+   * future syncs — existing events keep whatever they already have, so this
+   * can't silently rewrite a schedule the user has already sorted out by hand.
+   */
+  async setDefaultStudio(userId: string, studioId: string | null) {
+    const connection = await this.getConnection(userId);
+    if (!connection) throw new NotFoundException('No Google connection found');
+
+    const client = this.supabaseService.getClient();
+
+    if (studioId) {
+      const { data: studio, error: studioError } = await client
+        .from('studios')
+        .select('id')
+        .eq('id', studioId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (studioError) throw studioError;
+      if (!studio) throw new NotFoundException('Studio not found');
+    }
+
+    const { error } = await client
+      .from('calendar_connections')
+      .update({ default_studio_id: studioId })
+      .eq('id', connection.id);
+    if (error) throw error;
+
+    return { success: true, defaultStudioId: studioId };
+  }
+
   async sync(userId: string) {
     const connection = await this.getConnection(userId);
     if (!connection) throw new NotFoundException('No Google connection found');

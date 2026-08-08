@@ -139,6 +139,81 @@ export class EventsService {
     return { success: true };
   }
 
+  /**
+   * Assigns (or clears) the studio on many events at once.
+   *
+   * Status is derived from studio_id rather than trusted from the caller, the
+   * same rule the import paths use — an event carrying a studio must count
+   * toward earnings, and one without must not. Events the user has explicitly
+   * excluded stay excluded: assigning a studio shouldn't silently pull a class
+   * they deliberately removed back into their invoices.
+   */
+  async bulkAssignStudio(
+    userId: string,
+    ids: string[],
+    studioId: string | null,
+  ) {
+    const client = this.supabaseService.getClient();
+
+    if (studioId) {
+      const { data: studio, error: studioError } = await client
+        .from('studios')
+        .select('id')
+        .eq('id', studioId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (studioError) throw studioError;
+      if (!studio) throw new NotFoundException('Studio not found');
+    }
+
+    const { data: existing, error: existingError } = await client
+      .from('events')
+      .select('id, status')
+      .in('id', ids)
+      .eq('user_id', userId);
+    if (existingError) throw existingError;
+
+    const excludedIds = existing
+      .filter((e) => e.status === 'excluded')
+      .map((e) => e.id);
+    const normalIds = existing
+      .filter((e) => e.status !== 'excluded')
+      .map((e) => e.id);
+
+    let updated = 0;
+
+    if (normalIds.length > 0) {
+      const { data, error } = await client
+        .from('events')
+        .update({
+          studio_id: studioId,
+          status: studioId ? 'assigned' : 'unassigned',
+        })
+        .in('id', normalIds)
+        .eq('user_id', userId)
+        .select('id');
+      if (error) throw error;
+      updated += data.length;
+    }
+
+    if (excludedIds.length > 0) {
+      const { data, error } = await client
+        .from('events')
+        .update({ studio_id: studioId })
+        .in('id', excludedIds)
+        .eq('user_id', userId)
+        .select('id');
+      if (error) throw error;
+      updated += data.length;
+    }
+
+    return {
+      success: true,
+      updated,
+      keptExcluded: excludedIds.length,
+    };
+  }
+
   async bulkRemove(userId: string, ids: string[]) {
     const { data, error } = await this.supabaseService
       .getClient()

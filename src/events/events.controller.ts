@@ -16,6 +16,7 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { ImportEventsDto } from './dto/import-events.dto';
 import { BulkDeleteEventsDto } from './dto/bulk-delete-events.dto';
+import { BulkAssignEventsDto } from './dto/bulk-assign-events.dto';
 
 @Controller('events')
 @UseGuards(SupabaseAuthGuard)
@@ -65,5 +66,17 @@ export class EventsController {
     @Body() dto: BulkDeleteEventsDto,
   ) {
     return this.eventsService.bulkRemove(request.user.id, dto.ids);
+  }
+
+  @Post('bulk-assign')
+  bulkAssign(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: BulkAssignEventsDto,
+  ) {
+    return this.eventsService.bulkAssignStudio(
+      request.user.id,
+      dto.ids,
+      dto.studioId,
+    );
   }
 }

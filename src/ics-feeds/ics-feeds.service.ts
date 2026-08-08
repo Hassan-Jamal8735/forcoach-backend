@@ -7,6 +7,8 @@ import * as ical from 'node-ical';
 import { SupabaseService } from '../supabase/supabase.service';
 import { CreateIcsFeedDto } from './dto/create-ics-feed.dto';
 import { UpdateIcsFeedDto } from './dto/update-ics-feed.dto';
+import { UploadIcsDto } from './dto/upload-ics.dto';
+import { parseIcsText, type ParsedIcsEvent } from './ics-parse';
 import type {
   TablesInsert,
   TablesUpdate,
@@ -24,6 +26,145 @@ type ImportActivityUpdate = TablesUpdate<'import_activity'>;
 @Injectable()
 export class IcsFeedsService {
   constructor(private readonly supabaseService: SupabaseService) {}
+
+  /**
+   * Imports an uploaded .ics file.
+   *
+   * Unlike feed sync this applies no date window: uploads exist to backfill
+   * classes a live feed no longer publishes, so filtering out the past would
+   * remove exactly what the user is trying to recover.
+   *
+   * Dedupes on the ICS UID against previously imported ICS events, so
+   * re-uploading the same export updates rather than duplicating, and a file
+   * overlapping a connected feed won't create second copies either.
+   */
+  async importUpload(userId: string, dto: UploadIcsDto) {
+    const client = this.supabaseService.getClient();
+
+    let usable: ParsedIcsEvent[];
+    try {
+      usable = parseIcsText(dto.content);
+    } catch {
+      throw new BadRequestException(
+        'Could not read that .ics file. Please check it is a valid calendar export.',
+      );
+    }
+
+    if (usable.length === 0) {
+      throw new BadRequestException(
+        'No usable classes found in that file. It may be empty, or contain only cancelled events.',
+      );
+    }
+
+    if (dto.defaultStudioId) {
+      const { data: studio, error: studioError } = await client
+        .from('studios')
+        .select('id')
+        .eq('id', dto.defaultStudioId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (studioError) throw studioError;
+      if (!studio) throw new NotFoundException('Studio not found');
+    }
+
+    const activityInsert: ImportActivityInsert = {
+      user_id: userId,
+      source: 'ics',
+      status: 'running',
+      records_processed: usable.length,
+    };
+    const { data: activity, error: activityError } = await client
+      .from('import_activity')
+      .insert(activityInsert)
+      .select()
+      .single();
+    if (activityError) throw activityError;
+
+    try {
+      const externalIds = usable.map((e) => e.uid);
+      const { data: existingRows, error: existingError } = await client
+        .from('events')
+        .select('id, external_id')
+        .eq('user_id', userId)
+        .eq('source', 'ics')
+        .in('external_id', externalIds);
+      if (existingError) throw existingError;
+
+      const existingByExternalId = new Map(
+        (existingRows ?? []).map((row) => [row.external_id, row.id]),
+      );
+
+      let created = 0;
+      let updated = 0;
+      const toInsert: EventInsert[] = [];
+
+      for (const item of usable) {
+        const fields = {
+          title: item.title,
+          description: item.description,
+          location: item.location,
+          start_time: item.startTime,
+          end_time: item.endTime,
+        };
+
+        const existingId = existingByExternalId.get(item.uid);
+        if (existingId) {
+          // Only refresh the details — studio and status are left alone so an
+          // upload never undoes assignments the user already made by hand.
+          const { error } = await client
+            .from('events')
+            .update(fields)
+            .eq('id', existingId);
+          if (error) throw error;
+          updated += 1;
+        } else {
+          toInsert.push({
+            user_id: userId,
+            source: 'ics',
+            external_id: item.uid,
+            studio_id: dto.defaultStudioId ?? null,
+            status: dto.defaultStudioId ? 'assigned' : 'unassigned',
+            ...fields,
+          });
+        }
+      }
+
+      if (toInsert.length > 0) {
+        const { error } = await client.from('events').insert(toInsert);
+        if (error) throw error;
+        created = toInsert.length;
+      }
+
+      const finalUpdate: ImportActivityUpdate = {
+        status: 'success',
+        records_processed: usable.length,
+        records_created: created,
+        records_updated: updated,
+        records_skipped: 0,
+        finished_at: new Date().toISOString(),
+      };
+      const { data: finished, error: finishError } = await client
+        .from('import_activity')
+        .update(finalUpdate)
+        .eq('id', activity.id)
+        .select()
+        .single();
+      if (finishError) throw finishError;
+
+      return { activity: finished, created, updated };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Import failed';
+      await client
+        .from('import_activity')
+        .update({
+          status: 'failed',
+          error_message: message,
+          finished_at: new Date().toISOString(),
+        })
+        .eq('id', activity.id);
+      throw err;
+    }
+  }
 
   async list(userId: string) {
     const { data, error } = await this.supabaseService

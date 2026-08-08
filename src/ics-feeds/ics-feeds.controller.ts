@@ -14,6 +14,7 @@ import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
 import { IcsFeedsService } from './ics-feeds.service';
 import { CreateIcsFeedDto } from './dto/create-ics-feed.dto';
 import { UpdateIcsFeedDto } from './dto/update-ics-feed.dto';
+import { UploadIcsDto } from './dto/upload-ics.dto';
 
 @Controller('ics-feeds')
 @UseGuards(SupabaseAuthGuard)
@@ -23,6 +24,11 @@ export class IcsFeedsController {
   @Get()
   list(@Req() request: AuthenticatedRequest) {
     return this.icsFeedsService.list(request.user.id);
+  }
+
+  @Post('upload')
+  upload(@Req() request: AuthenticatedRequest, @Body() dto: UploadIcsDto) {
+    return this.icsFeedsService.importUpload(request.user.id, dto);
   }
 
   @Post()

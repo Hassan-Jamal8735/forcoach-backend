@@ -11,6 +11,7 @@ import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
 import { GoogleCalendarService } from './google-calendar.service';
 import { SelectCalendarDto } from './dto/select-calendar.dto';
+import { SetDefaultStudioDto } from './dto/set-default-studio.dto';
 
 @Controller('calendar/google')
 @UseGuards(SupabaseAuthGuard)
@@ -33,6 +34,17 @@ export class GoogleCalendarController {
     @Body() dto: SelectCalendarDto,
   ) {
     return this.googleCalendarService.selectCalendar(request.user.id, dto);
+  }
+
+  @Post('default-studio')
+  setDefaultStudio(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: SetDefaultStudioDto,
+  ) {
+    return this.googleCalendarService.setDefaultStudio(
+      request.user.id,
+      dto.studioId,
+    );
   }
 
   @Post('sync')
