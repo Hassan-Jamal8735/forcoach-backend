@@ -10,6 +10,8 @@ export type InvoicePdfCoach = {
   siret: string | null;
 };
 
+export type CurrencyCode = 'EUR' | 'USD';
+
 const CHARCOAL = '#1c1c1c';
 const MUTED = '#6e5f5c';
 const BORDER = '#e4e0dd';
@@ -178,11 +180,13 @@ const styles = StyleSheet.create({
   },
 });
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(value);
+// Matches the web app's formatter so an invoice reads the same on screen
+// and in the PDF.
+function makeCurrencyFormatter(currency: CurrencyCode) {
+  return (value: number): string =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(
+      value,
+    );
 }
 
 function formatDate(value: string): string {
@@ -197,11 +201,15 @@ export function InvoicePdf({
   invoice,
   lineItems,
   coach,
+  currency = 'EUR',
 }: {
   invoice: Invoice;
   lineItems: LineItem[];
   coach: InvoicePdfCoach;
+  currency?: CurrencyCode;
 }) {
+  const formatCurrency = makeCurrencyFormatter(currency);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>

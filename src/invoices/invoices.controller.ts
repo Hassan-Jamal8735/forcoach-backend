@@ -84,6 +84,7 @@ export class InvoicesController {
           email: request.user.email ?? '',
           siret: (metadata?.siret as string | undefined) ?? null,
         },
+        currency: metadata?.currency === 'USD' ? 'USD' : 'EUR',
       }),
     );
 
