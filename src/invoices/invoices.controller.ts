@@ -17,6 +17,7 @@ import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
 import { InvoicesService } from './invoices.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
+import { UpdateLineItemDto } from './dto/update-line-item.dto';
 import { InvoicePdf } from './pdf/invoice-pdf';
 
 @Controller('invoices')
@@ -46,6 +47,21 @@ export class InvoicesController {
     @Body() dto: UpdateInvoiceDto,
   ) {
     return this.invoicesService.update(request.user.id, id, dto);
+  }
+
+  @Patch(':id/line-items/:lineItemId')
+  updateLineItem(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('lineItemId') lineItemId: string,
+    @Body() dto: UpdateLineItemDto,
+  ) {
+    return this.invoicesService.updateLineItemRate(
+      request.user.id,
+      id,
+      lineItemId,
+      dto.rate,
+    );
   }
 
   @Post(':id/generate')

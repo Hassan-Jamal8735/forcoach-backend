@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { matchStudio } from './studio-matcher';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { ImportEventsDto } from './dto/import-events.dto';
@@ -45,6 +46,7 @@ function toInsertRow(dto: CreateEventDto, userId: string): EventInsert {
     status: deriveStatus(dto.studioId, dto.status),
     external_id: dto.externalId,
     notes: dto.notes,
+    rate_override: dto.rateOverride ?? null,
   };
 }
 
@@ -62,6 +64,8 @@ function toUpdateRow(
   if (dto.studioId !== undefined) row.studio_id = dto.studioId ?? null;
   if (dto.externalId !== undefined) row.external_id = dto.externalId;
   if (dto.notes !== undefined) row.notes = dto.notes;
+  if (dto.rateOverride !== undefined)
+    row.rate_override = dto.rateOverride ?? null;
 
   if (dto.studioId !== undefined || dto.status !== undefined) {
     const effectiveStudioId =
@@ -211,6 +215,62 @@ export class EventsService {
       success: true,
       updated,
       keptExcluded: excludedIds.length,
+    };
+  }
+
+  /**
+   * Runs studio matching over classes that are still unassigned.
+   *
+   * Only touches unassigned ones on purpose: anything the coach already sorted
+   * out by hand, or deliberately excluded, is left exactly as it is.
+   */
+  async rematchUnassigned(userId: string) {
+    const client = this.supabaseService.getClient();
+
+    const { data: studios, error: studiosError } = await client
+      .from('studios')
+      .select('id, name, match_keywords')
+      .eq('user_id', userId);
+    if (studiosError) throw studiosError;
+
+    if (!studios || studios.length === 0) {
+      return { matched: 0, stillUnassigned: 0, checked: 0 };
+    }
+
+    const { data: events, error: eventsError } = await client
+      .from('events')
+      .select('id, title, location')
+      .eq('user_id', userId)
+      .eq('status', 'unassigned');
+    if (eventsError) throw eventsError;
+
+    // Group by studio so we can update in one statement per studio rather than
+    // one per event — this runs over a coach's whole backlog.
+    const byStudio = new Map<string, string[]>();
+    for (const event of events ?? []) {
+      const studioId = matchStudio(studios, event);
+      if (!studioId) continue;
+      const list = byStudio.get(studioId) ?? [];
+      list.push(event.id);
+      byStudio.set(studioId, list);
+    }
+
+    let matched = 0;
+    for (const [studioId, ids] of byStudio) {
+      const { data, error } = await client
+        .from('events')
+        .update({ studio_id: studioId, status: 'assigned' })
+        .in('id', ids)
+        .eq('user_id', userId)
+        .select('id');
+      if (error) throw error;
+      matched += data.length;
+    }
+
+    return {
+      matched,
+      stillUnassigned: (events?.length ?? 0) - matched,
+      checked: events?.length ?? 0,
     };
   }
 

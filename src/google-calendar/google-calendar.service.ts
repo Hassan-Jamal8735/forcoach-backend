@@ -8,6 +8,7 @@ import { google, calendar_v3 } from 'googleapis';
 import { SupabaseService } from '../supabase/supabase.service';
 import { GoogleOAuthStateService } from './google-oauth-state.service';
 import { SelectCalendarDto } from './dto/select-calendar.dto';
+import { resolveStudioForImport } from '../events/studio-matcher';
 import type {
   TablesInsert,
   TablesUpdate,
@@ -266,6 +267,12 @@ export class GoogleCalendarService {
         (existingRows ?? []).map((row) => [row.external_id, row.id]),
       );
 
+      const { data: studios, error: studiosError } = await client_
+        .from('studios')
+        .select('id, name, match_keywords')
+        .eq('user_id', userId);
+      if (studiosError) throw studiosError;
+
       let created = 0;
       let updated = 0;
       const toInsert: EventInsert[] = [];
@@ -292,12 +299,17 @@ export class GoogleCalendarService {
           if (error) throw error;
           updated += 1;
         } else {
+          const studioId = resolveStudioForImport(
+            studios ?? [],
+            { title: fields.title, location: fields.location },
+            connection.default_studio_id,
+          );
           toInsert.push({
             user_id: userId,
             source: 'google_calendar',
             external_id: item.id!,
-            studio_id: connection.default_studio_id,
-            status: connection.default_studio_id ? 'assigned' : 'unassigned',
+            studio_id: studioId,
+            status: studioId ? 'assigned' : 'unassigned',
             ...fields,
           });
         }

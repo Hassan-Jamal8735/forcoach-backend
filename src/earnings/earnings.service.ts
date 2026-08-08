@@ -14,6 +14,7 @@ type EventRow = {
   start_time: string;
   end_time: string;
   status: string;
+  rate_override: number | null;
 };
 
 function eventAmount(event: EventRow, studio: StudioRate): number {
@@ -21,9 +22,10 @@ function eventAmount(event: EventRow, studio: StudioRate): number {
     (new Date(event.end_time).getTime() -
       new Date(event.start_time).getTime()) /
     (1000 * 60 * 60);
-  return studio.compensation_type === 'hourly'
-    ? hours * studio.compensation_value
-    : studio.compensation_value;
+  // A per-class override replaces the studio's rate but keeps its rate *type*,
+  // so an hourly studio still multiplies by duration.
+  const rate = event.rate_override ?? studio.compensation_value;
+  return studio.compensation_type === 'hourly' ? hours * rate : rate;
 }
 
 function eventHours(event: EventRow): number {
@@ -50,7 +52,7 @@ export class EarningsService {
     const client = this.supabaseService.getClient();
     const { data: events, error: eventsError } = await client
       .from('events')
-      .select('id, studio_id, start_time, end_time, status')
+      .select('id, studio_id, start_time, end_time, status, rate_override')
       .eq('user_id', userId)
       .eq('status', 'assigned')
       .not('studio_id', 'is', null)

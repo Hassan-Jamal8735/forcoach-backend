@@ -68,6 +68,11 @@ export class EventsController {
     return this.eventsService.bulkRemove(request.user.id, dto.ids);
   }
 
+  @Post('rematch-unassigned')
+  rematch(@Req() request: AuthenticatedRequest) {
+    return this.eventsService.rematchUnassigned(request.user.id);
+  }
+
   @Post('bulk-assign')
   bulkAssign(
     @Req() request: AuthenticatedRequest,

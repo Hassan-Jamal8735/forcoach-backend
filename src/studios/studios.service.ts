@@ -23,6 +23,7 @@ function toInsertRow(dto: CreateStudioDto, userId: string): StudioInsert {
     compensation_type: dto.compensationType,
     compensation_value: dto.compensationValue,
     status: dto.status ?? 'active',
+    match_keywords: dto.matchKeywords ?? [],
   };
 }
 
@@ -39,6 +40,7 @@ function toUpdateRow(dto: UpdateStudioDto): StudioUpdate {
     row.compensation_type = dto.compensationType;
   if (dto.compensationValue !== undefined)
     row.compensation_value = dto.compensationValue;
+  if (dto.matchKeywords !== undefined) row.match_keywords = dto.matchKeywords;
   if (dto.status !== undefined) row.status = dto.status;
   return row;
 }

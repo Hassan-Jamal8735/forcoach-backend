@@ -9,6 +9,7 @@ import { CreateIcsFeedDto } from './dto/create-ics-feed.dto';
 import { UpdateIcsFeedDto } from './dto/update-ics-feed.dto';
 import { UploadIcsDto } from './dto/upload-ics.dto';
 import { parseIcsText, type ParsedIcsEvent } from './ics-parse';
+import { resolveStudioForImport } from '../events/studio-matcher';
 import type {
   TablesInsert,
   TablesUpdate,
@@ -94,6 +95,12 @@ export class IcsFeedsService {
         (existingRows ?? []).map((row) => [row.external_id, row.id]),
       );
 
+      const { data: studios, error: studiosError } = await client
+        .from('studios')
+        .select('id, name, match_keywords')
+        .eq('user_id', userId);
+      if (studiosError) throw studiosError;
+
       let created = 0;
       let updated = 0;
       const toInsert: EventInsert[] = [];
@@ -118,12 +125,17 @@ export class IcsFeedsService {
           if (error) throw error;
           updated += 1;
         } else {
+          const studioId = resolveStudioForImport(
+            studios ?? [],
+            { title: item.title, location: item.location },
+            dto.defaultStudioId ?? null,
+          );
           toInsert.push({
             user_id: userId,
             source: 'ics',
             external_id: item.uid,
-            studio_id: dto.defaultStudioId ?? null,
-            status: dto.defaultStudioId ? 'assigned' : 'unassigned',
+            studio_id: studioId,
+            status: studioId ? 'assigned' : 'unassigned',
             ...fields,
           });
         }
@@ -299,6 +311,12 @@ export class IcsFeedsService {
         (existingRows ?? []).map((row) => [row.external_id, row.id]),
       );
 
+      const { data: syncStudios, error: syncStudiosError } = await client_
+        .from('studios')
+        .select('id, name, match_keywords')
+        .eq('user_id', userId);
+      if (syncStudiosError) throw syncStudiosError;
+
       let created = 0;
       let updated = 0;
       const toInsert: EventInsert[] = [];
@@ -322,13 +340,18 @@ export class IcsFeedsService {
           if (error) throw error;
           updated += 1;
         } else {
+          const studioId = resolveStudioForImport(
+            syncStudios ?? [],
+            { title: fields.title, location: fields.location },
+            feed.default_studio_id,
+          );
           toInsert.push({
             user_id: userId,
             source: 'ics',
             external_id: item.uid,
             ics_feed_id: feed.id,
-            studio_id: feed.default_studio_id,
-            status: feed.default_studio_id ? 'assigned' : 'unassigned',
+            studio_id: studioId,
+            status: studioId ? 'assigned' : 'unassigned',
             ...fields,
           });
         }

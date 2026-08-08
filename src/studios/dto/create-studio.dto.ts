@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsIn,
   IsNotEmpty,
   IsNumber,
@@ -46,4 +47,11 @@ export class CreateStudioDto {
   @IsOptional()
   @IsIn(['active', 'inactive'])
   status?: 'active' | 'inactive';
+
+  // Extra words matched against imported class titles/locations to auto-assign
+  // them to this studio. The studio name is always matched too.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  matchKeywords?: string[];
 }

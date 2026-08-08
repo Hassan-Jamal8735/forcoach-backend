@@ -83,7 +83,7 @@ export class InvoicesService {
 
     const { data: events, error: eventsError } = await client
       .from('events')
-      .select('id, title, start_time, end_time')
+      .select('id, title, start_time, end_time, rate_override')
       .eq('user_id', userId)
       .eq('studio_id', dto.studioId)
       .eq('status', 'assigned')
@@ -100,7 +100,9 @@ export class InvoicesService {
 
     const lineItemRows = events.map((event) => {
       const hours = eventHours(event.start_time, event.end_time);
-      const rate = studio.compensation_value;
+      // Per-class override wins over the studio's default rate. Snapshotted
+      // here like everything else, so later rate changes don't rewrite history.
+      const rate = event.rate_override ?? studio.compensation_value;
       const amount =
         studio.compensation_type === 'hourly' ? hours * rate : rate;
       return {
@@ -190,6 +192,66 @@ export class InvoicesService {
       .single();
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * Changes the rate on one line of a draft invoice and recalculates the
+   * invoice totals.
+   *
+   * Draft only. Once an invoice is generated it has a permanent number and has
+   * likely been sent, so it must stay exactly as issued.
+   */
+  async updateLineItemRate(
+    userId: string,
+    invoiceId: string,
+    lineItemId: string,
+    rate: number,
+  ) {
+    const invoice = await this.getInvoice(userId, invoiceId);
+    if (invoice.status !== 'draft') {
+      throw new BadRequestException(
+        'Only draft invoices can be edited. Generated invoices are immutable.',
+      );
+    }
+
+    const client = this.supabaseService.getClient();
+
+    const { data: item, error: itemError } = await client
+      .from('invoice_line_items')
+      .select('*')
+      .eq('id', lineItemId)
+      .eq('invoice_id', invoiceId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (itemError) throw itemError;
+    if (!item) throw new NotFoundException('Invoice line not found');
+
+    const amount =
+      item.compensation_type === 'hourly' ? item.hours * rate : rate;
+
+    const { error: updateError } = await client
+      .from('invoice_line_items')
+      .update({ rate, amount })
+      .eq('id', lineItemId);
+    if (updateError) throw updateError;
+
+    // Recompute from the stored lines rather than adjusting by a delta, so the
+    // totals can't drift out of step with the rows they're meant to summarise.
+    const lineItems = await this.getLineItems(invoiceId);
+    const subtotal = lineItems.reduce((sum, l) => sum + l.amount, 0);
+    const vatAmount = invoice.vat_rate
+      ? (subtotal * invoice.vat_rate) / 100
+      : 0;
+
+    const { data: updated, error: invoiceError } = await client
+      .from('invoices')
+      .update({ subtotal, vat_amount: vatAmount, total: subtotal + vatAmount })
+      .eq('id', invoiceId)
+      .select()
+      .single();
+    if (invoiceError) throw invoiceError;
+
+    return { invoice: updated, lineItems: await this.getLineItems(invoiceId) };
   }
 
   async generate(userId: string, id: string) {

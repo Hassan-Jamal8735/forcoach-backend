@@ -1,4 +1,6 @@
 import {
+  IsNumber,
+  Min,
   IsDateString,
   IsIn,
   IsNotEmpty,
@@ -47,4 +49,11 @@ export class CreateEventDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Overrides the studio's rate for this one class. null clears it.
+  @IsOptional()
+  @ValidateIf((o: CreateEventDto) => o.rateOverride !== null)
+  @IsNumber()
+  @Min(0)
+  rateOverride?: number | null;
 }

@@ -83,6 +83,7 @@ export type Database = {
           id: string;
           location: string | null;
           notes: string | null;
+          rate_override: number | null;
           source: string;
           start_time: string;
           status: string;
@@ -100,6 +101,7 @@ export type Database = {
           id?: string;
           location?: string | null;
           notes?: string | null;
+          rate_override?: number | null;
           source: string;
           start_time: string;
           status?: string;
@@ -117,6 +119,7 @@ export type Database = {
           id?: string;
           location?: string | null;
           notes?: string | null;
+          rate_override?: number | null;
           source?: string;
           start_time?: string;
           status?: string;
@@ -359,6 +362,7 @@ export type Database = {
           created_at: string;
           email: string | null;
           id: string;
+          match_keywords: string[];
           metadata: Json;
           name: string;
           notes: string | null;
@@ -376,6 +380,7 @@ export type Database = {
           created_at?: string;
           email?: string | null;
           id?: string;
+          match_keywords?: string[];
           metadata?: Json;
           name: string;
           notes?: string | null;
@@ -393,6 +398,7 @@ export type Database = {
           created_at?: string;
           email?: string | null;
           id?: string;
+          match_keywords?: string[];
           metadata?: Json;
           name?: string;
           notes?: string | null;
