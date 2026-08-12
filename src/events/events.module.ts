@@ -8,5 +8,6 @@ import { EventsService } from './events.service';
   imports: [SupabaseModule, AuthModule],
   controllers: [EventsController],
   providers: [EventsService],
+  exports: [EventsService],
 })
 export class EventsModule {}

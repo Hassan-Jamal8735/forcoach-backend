@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { EventsService } from '../events/events.service';
 import { CreateStudioDto } from './dto/create-studio.dto';
 import { UpdateStudioDto } from './dto/update-studio.dto';
+import { CreateFromSuggestionsDto } from './dto/create-from-suggestions.dto';
+import {
+  buildStudioSuggestions,
+  type StudioSuggestion,
+} from './studio-suggestions';
 import type {
   TablesInsert,
   TablesUpdate,
@@ -47,7 +53,10 @@ function toUpdateRow(dto: UpdateStudioDto): StudioUpdate {
 
 @Injectable()
 export class StudiosService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   async findAll(userId: string) {
     const { data, error } = await this.supabaseService
@@ -59,6 +68,75 @@ export class StudiosService {
 
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * Studios we can infer from the coach's imported classes, so setup can start
+   * from "here's what we found" rather than a blank form.
+   *
+   * Only considers classes that aren't already assigned and aren't already
+   * covered by an existing studio, so this empties out once setup is done.
+   */
+  async getSuggestions(userId: string): Promise<StudioSuggestion[]> {
+    const client = this.supabaseService.getClient();
+
+    const [
+      { data: studios, error: studiosError },
+      { data: events, error: eventsError },
+    ] = await Promise.all([
+      client
+        .from('studios')
+        .select('id, name, match_keywords')
+        .eq('user_id', userId),
+      client
+        .from('events')
+        .select('title, location')
+        .eq('user_id', userId)
+        .eq('status', 'unassigned'),
+    ]);
+    if (studiosError) throw studiosError;
+    if (eventsError) throw eventsError;
+
+    return buildStudioSuggestions(events ?? [], studios ?? []);
+  }
+
+  /**
+   * Creates the studios the coach confirmed, seeding each one's keywords from
+   * the text it was detected by, then immediately runs matching so their
+   * classes attach without a second step.
+   */
+  async createFromSuggestions(userId: string, dto: CreateFromSuggestionsDto) {
+    const client = this.supabaseService.getClient();
+
+    const rows: StudioInsert[] = dto.studios.map((s) => ({
+      user_id: userId,
+      name: s.name,
+      compensation_type: s.compensationType,
+      compensation_value: s.compensationValue,
+      status: 'active',
+      // Only store a keyword when it differs from the name; the name is always
+      // matched anyway, so storing a duplicate would just be noise.
+      match_keywords:
+        s.keyword && s.keyword.trim() && s.keyword.trim() !== s.name.trim()
+          ? [s.keyword.trim()]
+          : [],
+    }));
+
+    const { data: created, error } = await client
+      .from('studios')
+      .insert(rows)
+      .select();
+    if (error) throw error;
+
+    const { matched, stillUnassigned } =
+      await this.eventsService.rematchUnassigned(userId);
+
+    return {
+      created: created.length,
+      studios: created,
+      matched,
+      stillUnassigned,
+    };
   }
 
   async create(userId: string, dto: CreateStudioDto) {
