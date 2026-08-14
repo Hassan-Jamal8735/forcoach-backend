@@ -8,7 +8,6 @@ import { AuthModule } from './auth/auth.module';
 import { StudiosModule } from './studios/studios.module';
 import { EventsModule } from './events/events.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
-import { NotificationsModule } from './notifications/notifications.module';
 import { IcsFeedsModule } from './ics-feeds/ics-feeds.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { InvoicesModule } from './invoices/invoices.module';
@@ -22,7 +21,6 @@ import { InvoicesModule } from './invoices/invoices.module';
     StudiosModule,
     EventsModule,
     GoogleCalendarModule,
-    NotificationsModule,
     IcsFeedsModule,
     EarningsModule,
     InvoicesModule,
