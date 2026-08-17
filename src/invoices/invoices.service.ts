@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { resolveTierRate, type RateTier } from '../studios/rate-tiers';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import type {
@@ -74,7 +75,9 @@ export class InvoicesService {
 
     const { data: studio, error: studioError } = await client
       .from('studios')
-      .select('*')
+      .select(
+        '*, rate_tiers:studio_rate_tiers(min_attendance, max_attendance, rate)',
+      )
       .eq('id', dto.studioId)
       .eq('user_id', userId)
       .maybeSingle();
@@ -83,7 +86,9 @@ export class InvoicesService {
 
     const { data: events, error: eventsError } = await client
       .from('events')
-      .select('id, title, start_time, end_time, rate_override')
+      .select(
+        'id, title, start_time, end_time, rate_override, attendance_count',
+      )
       .eq('user_id', userId)
       .eq('studio_id', dto.studioId)
       .eq('status', 'assigned')
@@ -98,11 +103,38 @@ export class InvoicesService {
       );
     }
 
+    // Tiered classes with no attendance entered (or none of the studio's
+    // brackets cover the count) can't be priced — never guess a rate, ask
+    // the coach to fill it in first instead.
+    if (studio.compensation_type === 'tiered') {
+      const tiers = (studio.rate_tiers ?? []) as RateTier[];
+      const unpriced = events.filter(
+        (event) =>
+          event.rate_override == null &&
+          resolveTierRate(tiers, event.attendance_count) == null,
+      );
+      if (unpriced.length > 0) {
+        throw new BadRequestException(
+          `${unpriced.length} class${unpriced.length === 1 ? '' : 'es'} in this period ` +
+            `still need${unpriced.length === 1 ? 's' : ''} an attendance count before invoicing.`,
+        );
+      }
+    }
+
     const lineItemRows = events.map((event) => {
       const hours = eventHours(event.start_time, event.end_time);
       // Per-class override wins over the studio's default rate. Snapshotted
       // here like everything else, so later rate changes don't rewrite history.
-      const rate = event.rate_override ?? studio.compensation_value;
+      // The unpriced check above already guarantees this resolves to a real
+      // number for tiered studios, so the null case can't reach here.
+      const rate: number =
+        event.rate_override ??
+        (studio.compensation_type === 'tiered'
+          ? (resolveTierRate(
+              studio.rate_tiers ?? [],
+              event.attendance_count,
+            ) as number)
+          : studio.compensation_value);
       const amount =
         studio.compensation_type === 'hourly' ? hours * rate : rate;
       return {
@@ -113,6 +145,7 @@ export class InvoicesService {
         rate,
         compensation_type: studio.compensation_type,
         amount,
+        attendance_count: event.attendance_count,
       };
     });
 

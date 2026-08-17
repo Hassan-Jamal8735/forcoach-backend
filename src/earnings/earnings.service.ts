@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { resolveTierRate, type RateTier } from '../studios/rate-tiers';
 
 type StudioRate = {
   id: string;
   name: string;
   compensation_type: string;
   compensation_value: number;
+  rate_tiers?: RateTier[];
 };
 
 type EventRow = {
@@ -15,13 +17,27 @@ type EventRow = {
   end_time: string;
   status: string;
   rate_override: number | null;
+  attendance_count: number | null;
 };
 
-function eventAmount(event: EventRow, studio: StudioRate): number {
+// Returns null when a tiered studio's class can't be priced yet (no
+// attendance entered, or none of its brackets cover the count) — callers
+// must treat that as "not counted" rather than guessing a number.
+function eventAmount(event: EventRow, studio: StudioRate): number | null {
   const hours =
     (new Date(event.end_time).getTime() -
       new Date(event.start_time).getTime()) /
     (1000 * 60 * 60);
+
+  if (studio.compensation_type === 'tiered') {
+    if (event.rate_override != null) return event.rate_override;
+    const rate = resolveTierRate(
+      studio.rate_tiers ?? [],
+      event.attendance_count,
+    );
+    return rate;
+  }
+
   // A per-class override replaces the studio's rate but keeps its rate *type*,
   // so an hourly studio still multiplies by duration.
   const rate = event.rate_override ?? studio.compensation_value;
@@ -52,7 +68,9 @@ export class EarningsService {
     const client = this.supabaseService.getClient();
     const { data: events, error: eventsError } = await client
       .from('events')
-      .select('id, studio_id, start_time, end_time, status, rate_override')
+      .select(
+        'id, studio_id, start_time, end_time, status, rate_override, attendance_count',
+      )
       .eq('user_id', userId)
       .eq('status', 'assigned')
       .not('studio_id', 'is', null)
@@ -62,7 +80,9 @@ export class EarningsService {
 
     const { data: studios, error: studiosError } = await client
       .from('studios')
-      .select('id, name, compensation_type, compensation_value')
+      .select(
+        'id, name, compensation_type, compensation_value, rate_tiers:studio_rate_tiers(min_attendance, max_attendance, rate)',
+      )
       .eq('user_id', userId);
     if (studiosError) throw studiosError;
 
@@ -80,6 +100,7 @@ export class EarningsService {
 
     let totalHours = 0;
     let totalEarnings = 0;
+    let pendingAttendanceCount = 0;
     const perStudio = new Map<
       string,
       {
@@ -98,8 +119,12 @@ export class EarningsService {
       if (!studio) continue;
       const hours = eventHours(event);
       const amount = eventAmount(event, studio);
+      // A tiered studio's class with no attendance entered yet (or none of
+      // its brackets cover the count) can't be priced — count the class and
+      // its hours, but leave it out of earnings rather than guessing.
+      if (amount == null) pendingAttendanceCount += 1;
       totalHours += hours;
-      totalEarnings += amount;
+      totalEarnings += amount ?? 0;
 
       const entry = perStudio.get(studio.id) ?? {
         studioId: studio.id,
@@ -109,7 +134,7 @@ export class EarningsService {
         classCount: 0,
       };
       entry.hours += hours;
-      entry.earnings += amount;
+      entry.earnings += amount ?? 0;
       entry.classCount += 1;
       perStudio.set(studio.id, entry);
     }
@@ -119,7 +144,11 @@ export class EarningsService {
     );
     const bestStudio = studioBreakdown[0]?.studioName ?? null;
     const classCount = events.length;
-    const avgClassRate = classCount > 0 ? totalEarnings / classCount : 0;
+    // Priced classes only, so classes still waiting on attendance don't drag
+    // the average down toward zero.
+    const pricedClassCount = classCount - pendingAttendanceCount;
+    const avgClassRate =
+      pricedClassCount > 0 ? totalEarnings / pricedClassCount : 0;
 
     const client = this.supabaseService.getClient();
     const { count: pendingCount, error: pendingError } = await client
@@ -140,6 +169,7 @@ export class EarningsService {
       avgClassRate,
       bestStudio,
       pendingCount: pendingCount ?? 0,
+      pendingAttendanceCount,
       studioBreakdown,
     };
   }
@@ -179,7 +209,7 @@ export class EarningsService {
       if (!studio) continue;
       const key = bucketKey(new Date(event.start_time));
       const entry = buckets.get(key) ?? { earnings: 0, hours: 0 };
-      entry.earnings += eventAmount(event, studio);
+      entry.earnings += eventAmount(event, studio) ?? 0;
       entry.hours += eventHours(event);
       buckets.set(key, entry);
     }

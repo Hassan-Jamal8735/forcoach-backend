@@ -1,4 +1,5 @@
 import {
+  IsInt,
   IsNumber,
   Min,
   IsDateString,
@@ -56,4 +57,12 @@ export class CreateEventDto {
   @IsNumber()
   @Min(0)
   rateOverride?: number | null;
+
+  // Manually entered head count, used to pick a rate bracket for
+  // tiered-compensation studios. null clears it.
+  @IsOptional()
+  @ValidateIf((o: CreateEventDto) => o.attendanceCount !== null)
+  @IsInt()
+  @Min(0)
+  attendanceCount?: number | null;
 }

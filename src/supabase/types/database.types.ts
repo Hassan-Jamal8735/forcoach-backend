@@ -75,6 +75,7 @@ export type Database = {
       };
       events: {
         Row: {
+          attendance_count: number | null;
           created_at: string;
           description: string | null;
           end_time: string;
@@ -93,6 +94,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          attendance_count?: number | null;
           created_at?: string;
           description?: string | null;
           end_time: string;
@@ -111,6 +113,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          attendance_count?: number | null;
           created_at?: string;
           description?: string | null;
           end_time?: string;
@@ -231,6 +234,7 @@ export type Database = {
       invoice_line_items: {
         Row: {
           amount: number;
+          attendance_count: number | null;
           compensation_type: string;
           created_at: string;
           event_date: string;
@@ -244,6 +248,7 @@ export type Database = {
         };
         Insert: {
           amount: number;
+          attendance_count?: number | null;
           compensation_type: string;
           created_at?: string;
           event_date: string;
@@ -257,6 +262,7 @@ export type Database = {
         };
         Update: {
           amount?: number;
+          attendance_count?: number | null;
           compensation_type?: string;
           created_at?: string;
           event_date?: string;
@@ -409,6 +415,44 @@ export type Database = {
           user_id?: string;
         };
         Relationships: [];
+      };
+      studio_rate_tiers: {
+        Row: {
+          created_at: string;
+          id: string;
+          max_attendance: number | null;
+          min_attendance: number;
+          rate: number;
+          studio_id: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          max_attendance?: number | null;
+          min_attendance: number;
+          rate: number;
+          studio_id: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          max_attendance?: number | null;
+          min_attendance?: number;
+          rate?: number;
+          studio_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'studio_rate_tiers_studio_id_fkey';
+            columns: ['studio_id'];
+            isOneToOne: false;
+            referencedRelation: 'studios';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: {

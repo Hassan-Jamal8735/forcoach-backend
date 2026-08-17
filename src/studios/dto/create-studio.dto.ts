@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsIn,
@@ -6,7 +7,10 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { RateTierDto } from './rate-tier.dto';
 
 export class CreateStudioDto {
   @IsString()
@@ -37,12 +41,23 @@ export class CreateStudioDto {
   @IsString()
   notes?: string;
 
-  @IsIn(['hourly', 'per_class'])
-  compensationType!: 'hourly' | 'per_class';
+  @IsIn(['hourly', 'per_class', 'tiered'])
+  compensationType!: 'hourly' | 'per_class' | 'tiered';
 
+  // Not used when tiered — the rate comes from rateTiers instead.
+  @ValidateIf((o: CreateStudioDto) => o.compensationType !== 'tiered')
   @IsNumber()
   @Min(0)
-  compensationValue!: number;
+  compensationValue?: number;
+
+  // Attendance brackets, only used when compensationType is 'tiered'. Sorted
+  // by minAttendance isn't required here; the matching logic doesn't assume
+  // order.
+  @ValidateIf((o: CreateStudioDto) => o.compensationType === 'tiered')
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RateTierDto)
+  rateTiers?: RateTierDto[];
 
   @IsOptional()
   @IsIn(['active', 'inactive'])

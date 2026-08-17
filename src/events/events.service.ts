@@ -47,6 +47,7 @@ function toInsertRow(dto: CreateEventDto, userId: string): EventInsert {
     external_id: dto.externalId,
     notes: dto.notes,
     rate_override: dto.rateOverride ?? null,
+    attendance_count: dto.attendanceCount ?? null,
   };
 }
 
@@ -66,6 +67,8 @@ function toUpdateRow(
   if (dto.notes !== undefined) row.notes = dto.notes;
   if (dto.rateOverride !== undefined)
     row.rate_override = dto.rateOverride ?? null;
+  if (dto.attendanceCount !== undefined)
+    row.attendance_count = dto.attendanceCount ?? null;
 
   if (dto.studioId !== undefined || dto.status !== undefined) {
     const effectiveStudioId =
