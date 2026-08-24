@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+const MONTH_MS = 30 * DAY_MS;
+const TREND_DAYS = 30;
 
 @Injectable()
 export class AdminService {
@@ -64,7 +66,33 @@ export class AdminService {
       totalClasses,
       totalInvoices,
       unreadSupportCount: unreadSupportCount ?? 0,
+      signupTrend: this.buildSignupTrend(users),
     };
+  }
+
+  /** Daily new-signup counts for the last 30 days, oldest first. */
+  private buildSignupTrend(users: { created_at: string }[]) {
+    const counts = new Map<string, number>();
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const days: string[] = [];
+    for (let i = TREND_DAYS - 1; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * DAY_MS);
+      const key = d.toISOString().slice(0, 10);
+      days.push(key);
+      counts.set(key, 0);
+    }
+
+    const cutoff = today.getTime() - (TREND_DAYS - 1) * DAY_MS;
+    for (const u of users) {
+      const t = new Date(u.created_at).getTime();
+      if (t < cutoff) continue;
+      const key = new Date(t).toISOString().slice(0, 10);
+      if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    return days.map((date) => ({ date, count: counts.get(date) ?? 0 }));
   }
 
   /**
