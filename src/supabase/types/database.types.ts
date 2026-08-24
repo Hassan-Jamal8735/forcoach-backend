@@ -416,6 +416,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      support_messages: {
+        Row: {
+          body: string;
+          created_at: string;
+          id: string;
+          read_at: string | null;
+          sender: string;
+          user_id: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          id?: string;
+          read_at?: string | null;
+          sender: string;
+          user_id: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          id?: string;
+          read_at?: string | null;
+          sender?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       studio_rate_tiers: {
         Row: {
           created_at: string;

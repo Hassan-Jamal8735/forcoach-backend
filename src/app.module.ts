@@ -11,6 +11,8 @@ import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 import { IcsFeedsModule } from './ics-feeds/ics-feeds.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { SupportModule } from './support/support.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { InvoicesModule } from './invoices/invoices.module';
     IcsFeedsModule,
     EarningsModule,
     InvoicesModule,
+    SupportModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
