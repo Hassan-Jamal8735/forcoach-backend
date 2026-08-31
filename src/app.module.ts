@@ -13,6 +13,7 @@ import { EarningsModule } from './earnings/earnings.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { SupportModule } from './support/support.module';
 import { AdminModule } from './admin/admin.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AdminModule } from './admin/admin.module';
     InvoicesModule,
     SupportModule,
     AdminModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

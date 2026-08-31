@@ -58,6 +58,14 @@ export class AdminService {
         .is('read_at', null);
     if (unreadError) throw unreadError;
 
+    const { count: activeSubscriptions, error: subsError } =
+      await this.supabaseService
+        .getClient()
+        .from('subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['active', 'trialing']);
+    if (subsError) throw subsError;
+
     return {
       totalUsers: users.length,
       newUsersThisWeek: newThisWeek,
@@ -66,6 +74,7 @@ export class AdminService {
       totalClasses,
       totalInvoices,
       unreadSupportCount: unreadSupportCount ?? 0,
+      activeSubscriptions: activeSubscriptions ?? 0,
       signupTrend: this.buildSignupTrend(users),
     };
   }
@@ -113,6 +122,7 @@ export class AdminService {
           { count: classCount },
           { count: invoiceCount },
           { count: unreadSupportCount },
+          { data: subscription },
         ] = await Promise.all([
           client
             .from('studios')
@@ -132,6 +142,11 @@ export class AdminService {
             .eq('user_id', u.id)
             .eq('sender', 'user')
             .is('read_at', null),
+          client
+            .from('subscriptions')
+            .select('status')
+            .eq('user_id', u.id)
+            .maybeSingle(),
         ]);
 
         return {
@@ -144,6 +159,7 @@ export class AdminService {
           classCount: classCount ?? 0,
           invoiceCount: invoiceCount ?? 0,
           unreadSupportCount: unreadSupportCount ?? 0,
+          subscriptionStatus: subscription?.status ?? 'none',
         };
       }),
     );
