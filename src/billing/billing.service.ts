@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
 import { SupabaseService } from '../supabase/supabase.service';
+import { StripeService } from '../stripe/stripe.service';
 
 type SubscriptionStatus =
   'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
@@ -16,10 +17,9 @@ export class BillingService {
   constructor(
     private readonly config: ConfigService,
     private readonly supabaseService: SupabaseService,
+    private readonly stripeService: StripeService,
   ) {
-    this.stripe = new Stripe(
-      this.config.getOrThrow<string>('STRIPE_SECRET_KEY'),
-    );
+    this.stripe = this.stripeService.client;
     this.priceId = this.config.getOrThrow<string>('STRIPE_PRICE_ID');
     this.webOrigin = this.config.get<string>(
       'WEB_ORIGIN',
@@ -118,6 +118,8 @@ export class BillingService {
       status,
       currentPeriodEnd: row?.current_period_end ?? null,
       cancelAtPeriodEnd: row?.cancel_at_period_end ?? false,
+      promoCode: row?.promo_code ?? null,
+      discountPercentOff: row?.discount_percent_off ?? null,
       enforced,
       hasAccess,
     };
@@ -174,6 +176,7 @@ export class BillingService {
         : subscription.customer.id;
 
     const periodEndTs = subscription.items.data[0]?.current_period_end;
+    const discount = await this.resolveDiscount(subscription.id);
 
     const { error } = await this.supabaseService
       .getClient()
@@ -185,6 +188,9 @@ export class BillingService {
           ? new Date(periodEndTs * 1000).toISOString()
           : null,
         cancel_at_period_end: subscription.cancel_at_period_end,
+        promo_code: discount?.code ?? null,
+        discount_percent_off: discount?.percentOff ?? null,
+        discount_duration: discount?.duration ?? null,
       })
       .eq('stripe_customer_id', customerId);
 
@@ -192,5 +198,35 @@ export class BillingService {
     this.logger.log(
       `Subscription ${subscription.id} for customer ${customerId} -> ${subscription.status}`,
     );
+  }
+
+  /**
+   * Re-fetches with discounts expanded — webhook payloads don't reliably
+   * carry expanded coupon/promotion-code text, so this normalizes it
+   * regardless of which event triggered the update.
+   */
+  private async resolveDiscount(subscriptionId: string): Promise<{
+    code: string | null;
+    percentOff: number | null;
+    duration: string | null;
+  } | null> {
+    const fresh = await this.stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['discounts.source.coupon', 'discounts.promotion_code'],
+    });
+    const discount = fresh.discounts?.[0];
+    if (!discount || typeof discount === 'string') return null;
+
+    const rawCoupon = discount.source.coupon;
+    const coupon = typeof rawCoupon === 'string' ? null : rawCoupon;
+    const promotionCode =
+      typeof discount.promotion_code === 'string'
+        ? null
+        : discount.promotion_code;
+
+    return {
+      code: promotionCode?.code ?? null,
+      percentOff: coupon?.percent_off ?? null,
+      duration: coupon?.duration ?? null,
+    };
   }
 }

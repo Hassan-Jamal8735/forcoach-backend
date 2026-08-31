@@ -144,7 +144,9 @@ export class AdminService {
             .is('read_at', null),
           client
             .from('subscriptions')
-            .select('status')
+            .select(
+              'status, promo_code, discount_percent_off, discount_duration',
+            )
             .eq('user_id', u.id)
             .maybeSingle(),
         ]);
@@ -160,6 +162,9 @@ export class AdminService {
           invoiceCount: invoiceCount ?? 0,
           unreadSupportCount: unreadSupportCount ?? 0,
           subscriptionStatus: subscription?.status ?? 'none',
+          promoCode: subscription?.promo_code ?? null,
+          discountPercentOff: subscription?.discount_percent_off ?? null,
+          discountDuration: subscription?.discount_duration ?? null,
         };
       }),
     );
