@@ -8,6 +8,7 @@ export type InvoicePdfCoach = {
   fullName: string;
   email: string;
   siret: string | null;
+  iban: string | null;
 };
 
 export type CurrencyCode = 'EUR' | 'USD' | 'GBP';
@@ -161,6 +162,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Helvetica-Bold',
   },
+  paymentDetails: {
+    marginBottom: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderColor: BORDER,
+  },
   notes: {
     fontSize: 9,
     color: MUTED,
@@ -249,19 +256,15 @@ export function InvoicePdf({
           <View style={styles.metaCell}>
             <Text style={styles.metaCellLabel}>Period</Text>
             <Text style={styles.metaCellValue}>
-              {formatDate(invoice.period_start)} - {formatDate(invoice.period_end)}
+              {formatDate(invoice.period_start) === formatDate(invoice.period_end)
+                ? formatDate(invoice.period_start)
+                : `${formatDate(invoice.period_start)} - ${formatDate(invoice.period_end)}`}
             </Text>
           </View>
           <View style={styles.metaCell}>
             <Text style={styles.metaCellLabel}>Due date</Text>
             <Text style={styles.metaCellValue}>
               {formatDate(invoice.due_date)}
-            </Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaCellLabel}>Status</Text>
-            <Text style={styles.metaCellValue}>
-              {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
             </Text>
           </View>
         </View>
@@ -283,9 +286,7 @@ export function InvoicePdf({
                 {item.title}
               </Text>
               <Text style={[styles.tableCellText, styles.colHours]}>
-                {item.compensation_type === 'hourly'
-                  ? item.hours.toFixed(2)
-                  : '-'}
+                {item.hours.toFixed(2)}
               </Text>
               <Text style={[styles.tableCellText, styles.colRate]}>
                 {formatCurrency(item.rate)}
@@ -322,6 +323,13 @@ export function InvoicePdf({
             </Text>
           </View>
         </View>
+
+        {coach.iban && (
+          <View style={styles.paymentDetails}>
+            <Text style={styles.partyLabel}>Payment details</Text>
+            <Text style={styles.partyLine}>IBAN: {coach.iban}</Text>
+          </View>
+        )}
 
         {invoice.notes && <Text style={styles.notes}>{invoice.notes}</Text>}
 

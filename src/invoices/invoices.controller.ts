@@ -99,8 +99,12 @@ export class InvoicesController {
           fullName: (metadata?.full_name as string | undefined) ?? '',
           email: request.user.email ?? '',
           siret: (metadata?.siret as string | undefined) ?? null,
+          iban: (metadata?.iban as string | undefined) ?? null,
         },
-        currency: metadata?.currency === 'USD' ? 'USD' : 'EUR',
+        currency:
+          metadata?.currency === 'USD' || metadata?.currency === 'GBP'
+            ? metadata.currency
+            : 'EUR',
       }),
     );
 
