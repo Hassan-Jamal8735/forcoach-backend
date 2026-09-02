@@ -7,6 +7,7 @@ import { StripeService } from '../stripe/stripe.service';
 type SubscriptionStatus =
   'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
 export type Plan = 'monthly' | 'yearly';
+const TRIAL_DAYS = 15;
 
 @Injectable()
 export class BillingService {
@@ -96,7 +97,10 @@ export class BillingService {
         : { allow_promotion_codes: true }),
       success_url: `${this.webOrigin}/settings?billing=success`,
       cancel_url: `${this.webOrigin}/settings?billing=cancelled`,
-      subscription_data: { metadata: { forcoach_user_id: userId } },
+      subscription_data: {
+        trial_period_days: TRIAL_DAYS,
+        metadata: { forcoach_user_id: userId },
+      },
     });
 
     if (!session.url) {

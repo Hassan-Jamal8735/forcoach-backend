@@ -10,7 +10,7 @@ export type InvoicePdfCoach = {
   siret: string | null;
 };
 
-export type CurrencyCode = 'EUR' | 'USD';
+export type CurrencyCode = 'EUR' | 'USD' | 'GBP';
 
 const CHARCOAL = '#1c1c1c';
 const MUTED = '#6e5f5c';
