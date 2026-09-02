@@ -424,6 +424,7 @@ export type Database = {
           discount_duration: string | null;
           discount_percent_off: number | null;
           id: string;
+          plan: string | null;
           promo_code: string | null;
           status: string;
           stripe_customer_id: string;
@@ -438,6 +439,7 @@ export type Database = {
           discount_duration?: string | null;
           discount_percent_off?: number | null;
           id?: string;
+          plan?: string | null;
           promo_code?: string | null;
           status?: string;
           stripe_customer_id: string;
@@ -452,6 +454,7 @@ export type Database = {
           discount_duration?: string | null;
           discount_percent_off?: number | null;
           id?: string;
+          plan?: string | null;
           promo_code?: string | null;
           status?: string;
           stripe_customer_id?: string;

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Headers,
   Post,
@@ -12,6 +13,7 @@ import type { Request } from 'express';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
 import { BillingService } from './billing.service';
+import { CheckoutDto } from './dto/checkout.dto';
 
 @Controller('billing')
 export class BillingController {
@@ -19,10 +21,11 @@ export class BillingController {
 
   @Post('checkout')
   @UseGuards(SupabaseAuthGuard)
-  checkout(@Req() request: AuthenticatedRequest) {
+  checkout(@Req() request: AuthenticatedRequest, @Body() dto: CheckoutDto) {
     return this.billingService.createCheckoutSession(
       request.user.id,
       request.user.email ?? '',
+      dto.plan,
     );
   }
 

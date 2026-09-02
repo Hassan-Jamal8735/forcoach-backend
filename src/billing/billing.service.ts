@@ -6,12 +6,13 @@ import { StripeService } from '../stripe/stripe.service';
 
 type SubscriptionStatus =
   'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid';
+export type Plan = 'monthly' | 'yearly';
 
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
   private readonly stripe: Stripe;
-  private readonly priceId: string;
+  private readonly priceIds: Record<Plan, string>;
   private readonly webOrigin: string;
 
   constructor(
@@ -20,7 +21,10 @@ export class BillingService {
     private readonly stripeService: StripeService,
   ) {
     this.stripe = this.stripeService.client;
-    this.priceId = this.config.getOrThrow<string>('STRIPE_PRICE_ID');
+    this.priceIds = {
+      monthly: this.config.getOrThrow<string>('STRIPE_PRICE_ID_MONTHLY'),
+      yearly: this.config.getOrThrow<string>('STRIPE_PRICE_ID_YEARLY'),
+    };
     this.webOrigin = this.config.get<string>(
       'WEB_ORIGIN',
       'http://localhost:3000',
@@ -73,13 +77,13 @@ export class BillingService {
     return customer.id;
   }
 
-  async createCheckoutSession(userId: string, email: string) {
+  async createCheckoutSession(userId: string, email: string, plan: Plan) {
     const customerId = await this.getOrCreateCustomer(userId, email);
 
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
-      line_items: [{ price: this.priceId, quantity: 1 }],
+      line_items: [{ price: this.priceIds[plan], quantity: 1 }],
       // Lets a coach type a promo code Aya created directly in the Stripe
       // dashboard (e.g. 100%-off-forever for a beta tester) — no custom
       // promo-code UI needed on our side.
@@ -120,6 +124,7 @@ export class BillingService {
       cancelAtPeriodEnd: row?.cancel_at_period_end ?? false,
       promoCode: row?.promo_code ?? null,
       discountPercentOff: row?.discount_percent_off ?? null,
+      plan: (row?.plan as Plan | undefined) ?? null,
       enforced,
       hasAccess,
     };
@@ -175,8 +180,14 @@ export class BillingService {
         ? subscription.customer
         : subscription.customer.id;
 
-    const periodEndTs = subscription.items.data[0]?.current_period_end;
+    const item = subscription.items.data[0];
+    const periodEndTs = item?.current_period_end;
     const discount = await this.resolveDiscount(subscription.id);
+    // Derived from the interval rather than matching against our configured
+    // price IDs, so an old/renamed price still resolves correctly.
+    const interval = item?.price.recurring?.interval;
+    const plan: Plan | null =
+      interval === 'year' ? 'yearly' : interval === 'month' ? 'monthly' : null;
 
     const { error } = await this.supabaseService
       .getClient()
@@ -191,6 +202,7 @@ export class BillingService {
         promo_code: discount?.code ?? null,
         discount_percent_off: discount?.percentOff ?? null,
         discount_duration: discount?.duration ?? null,
+        plan,
       })
       .eq('stripe_customer_id', customerId);
 
