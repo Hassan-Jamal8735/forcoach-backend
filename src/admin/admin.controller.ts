@@ -13,6 +13,7 @@ import { AdminService } from './admin.service';
 import { AdminBillingService } from './admin-billing.service';
 import { AdminReplyDto } from './dto/admin-reply.dto';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
+import { SetYearlyDiscountDto } from './dto/set-yearly-discount.dto';
 
 @Controller('admin')
 @UseGuards(SupabaseAuthGuard, AdminGuard)
@@ -65,5 +66,20 @@ export class AdminController {
   @Delete('billing/promo-codes/:id')
   deactivatePromoCode(@Param('id') id: string) {
     return this.adminBillingService.deactivatePromoCode(id);
+  }
+
+  @Get('billing/yearly-discount')
+  getYearlyDiscount() {
+    return this.adminBillingService.getYearlyDiscount();
+  }
+
+  @Post('billing/yearly-discount')
+  setYearlyDiscount(@Body() dto: SetYearlyDiscountDto) {
+    return this.adminBillingService.setYearlyDiscount(dto.percentOff);
+  }
+
+  @Delete('billing/yearly-discount')
+  clearYearlyDiscount() {
+    return this.adminBillingService.clearYearlyDiscount();
   }
 }

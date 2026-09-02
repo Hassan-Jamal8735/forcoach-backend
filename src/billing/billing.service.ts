@@ -80,14 +80,20 @@ export class BillingService {
   async createCheckoutSession(userId: string, email: string, plan: Plan) {
     const customerId = await this.getOrCreateCustomer(userId, email);
 
+    // Stripe won't allow allow_promotion_codes and a pre-applied discount on
+    // the same session, so the yearly plan's standing discount (set in the
+    // admin panel) takes over the discount slot instead of manual entry —
+    // monthly keeps promo-code entry for beta-tester-style one-off codes.
+    const yearlyCouponId =
+      plan === 'yearly' ? await this.getYearlyDiscountCouponId() : null;
+
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: this.priceIds[plan], quantity: 1 }],
-      // Lets a coach type a promo code Aya created directly in the Stripe
-      // dashboard (e.g. 100%-off-forever for a beta tester) — no custom
-      // promo-code UI needed on our side.
-      allow_promotion_codes: true,
+      ...(yearlyCouponId
+        ? { discounts: [{ coupon: yearlyCouponId }] }
+        : { allow_promotion_codes: true }),
       success_url: `${this.webOrigin}/settings?billing=success`,
       cancel_url: `${this.webOrigin}/settings?billing=cancelled`,
       subscription_data: { metadata: { forcoach_user_id: userId } },
@@ -97,6 +103,17 @@ export class BillingService {
       throw new BadRequestException('Stripe did not return a checkout URL');
     }
     return { url: session.url };
+  }
+
+  private async getYearlyDiscountCouponId(): Promise<string | null> {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('billing_settings')
+      .select('yearly_discount_coupon_id')
+      .eq('id', 1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.yearly_discount_coupon_id ?? null;
   }
 
   async createPortalSession(userId: string) {
@@ -118,6 +135,13 @@ export class BillingService {
     const enforced = this.isEnforced();
     const hasAccess = !enforced || status === 'active' || status === 'trialing';
 
+    const { data: settings } = await this.supabaseService
+      .getClient()
+      .from('billing_settings')
+      .select('yearly_discount_percent_off')
+      .eq('id', 1)
+      .maybeSingle();
+
     return {
       status,
       currentPeriodEnd: row?.current_period_end ?? null,
@@ -125,6 +149,7 @@ export class BillingService {
       promoCode: row?.promo_code ?? null,
       discountPercentOff: row?.discount_percent_off ?? null,
       plan: (row?.plan as Plan | undefined) ?? null,
+      yearlyDiscountPercentOff: settings?.yearly_discount_percent_off ?? null,
       enforced,
       hasAccess,
     };

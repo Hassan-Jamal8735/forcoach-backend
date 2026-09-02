@@ -17,6 +17,27 @@ export type Database = {
   };
   public: {
     Tables: {
+      billing_settings: {
+        Row: {
+          id: number;
+          updated_at: string;
+          yearly_discount_coupon_id: string | null;
+          yearly_discount_percent_off: number | null;
+        };
+        Insert: {
+          id?: number;
+          updated_at?: string;
+          yearly_discount_coupon_id?: string | null;
+          yearly_discount_percent_off?: number | null;
+        };
+        Update: {
+          id?: number;
+          updated_at?: string;
+          yearly_discount_coupon_id?: string | null;
+          yearly_discount_percent_off?: number | null;
+        };
+        Relationships: [];
+      };
       calendar_connections: {
         Row: {
           access_token: string | null;
