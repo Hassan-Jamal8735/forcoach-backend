@@ -14,6 +14,7 @@ import { AdminBillingService } from './admin-billing.service';
 import { AdminReplyDto } from './dto/admin-reply.dto';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { SetYearlyDiscountDto } from './dto/set-yearly-discount.dto';
+import { GrantAccessDto } from './dto/grant-access.dto';
 
 @Controller('admin')
 @UseGuards(SupabaseAuthGuard, AdminGuard)
@@ -51,6 +52,16 @@ export class AdminController {
   @Post('support/threads/:userId/read')
   markRead(@Param('userId') userId: string) {
     return this.adminService.markThreadReadByAdmin(userId);
+  }
+
+  @Post('users/:userId/grant-access')
+  grantAccess(@Param('userId') userId: string, @Body() dto: GrantAccessDto) {
+    return this.adminService.grantAccess(userId, dto.days);
+  }
+
+  @Delete('users/:userId/grant-access')
+  revokeAccess(@Param('userId') userId: string) {
+    return this.adminService.revokeAccess(userId);
   }
 
   @Get('billing/promo-codes')

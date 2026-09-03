@@ -145,7 +145,7 @@ export class AdminService {
           client
             .from('subscriptions')
             .select(
-              'status, promo_code, discount_percent_off, discount_duration',
+              'status, promo_code, discount_percent_off, discount_duration, current_period_end, admin_override_until',
             )
             .eq('user_id', u.id)
             .maybeSingle(),
@@ -165,9 +165,79 @@ export class AdminService {
           promoCode: subscription?.promo_code ?? null,
           discountPercentOff: subscription?.discount_percent_off ?? null,
           discountDuration: subscription?.discount_duration ?? null,
+          adminOverrideUntil: subscription?.admin_override_until ?? null,
+          accessReason: this.describeAccess(subscription),
         };
       }),
     );
+  }
+
+  /**
+   * A human-readable reason for a coach's current access state, so Aya
+   * doesn't have to cross-reference Stripe to answer "why can't I log in".
+   */
+  private describeAccess(
+    subscription: {
+      status: string;
+      current_period_end: string | null;
+      admin_override_until: string | null;
+    } | null,
+  ): string {
+    const now = Date.now();
+    if (
+      subscription?.admin_override_until &&
+      new Date(subscription.admin_override_until).getTime() > now
+    ) {
+      const until = new Date(
+        subscription.admin_override_until,
+      ).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `Admin override until ${until}`;
+    }
+    switch (subscription?.status) {
+      case 'trialing': {
+        if (!subscription.current_period_end) return 'Trial active';
+        const end = new Date(
+          subscription.current_period_end,
+        ).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `Trial ends ${end}`;
+      }
+      case 'active':
+        return 'Active';
+      case 'past_due':
+        return 'Payment failed';
+      case 'unpaid':
+        return 'Payment failed';
+      case 'canceled':
+        return 'Canceled';
+      case 'incomplete':
+        return 'Checkout started, not finished';
+      default:
+        return 'Never subscribed';
+    }
+  }
+
+  /** Grants access for N days regardless of Stripe status — see migration 009. */
+  async grantAccess(userId: string, days: number) {
+    const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const { error } = await this.supabaseService
+      .getClient()
+      .from('subscriptions')
+      .upsert(
+        { user_id: userId, admin_override_until: until.toISOString() },
+        { onConflict: 'user_id' },
+      );
+    if (error) throw error;
+    return { adminOverrideUntil: until.toISOString() };
+  }
+
+  async revokeAccess(userId: string) {
+    const { error } = await this.supabaseService
+      .getClient()
+      .from('subscriptions')
+      .update({ admin_override_until: null })
+      .eq('user_id', userId);
+    if (error) throw error;
+    return { success: true };
   }
 
   async listSupportThreads() {

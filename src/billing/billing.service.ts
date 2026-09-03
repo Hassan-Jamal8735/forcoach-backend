@@ -58,21 +58,27 @@ export class BillingService {
     email: string,
   ): Promise<string> {
     const existing = await this.getRow(userId);
-    if (existing) return existing.stripe_customer_id;
+    if (existing?.stripe_customer_id) return existing.stripe_customer_id;
 
     const customer = await this.stripe.customers.create({
       email,
       metadata: { forcoach_user_id: userId },
     });
 
-    const { error } = await this.supabaseService
-      .getClient()
-      .from('subscriptions')
-      .insert({
-        user_id: userId,
-        stripe_customer_id: customer.id,
-        status: 'incomplete',
-      });
+    // A row can already exist with no Stripe customer yet — e.g. admin
+    // granted access before this coach ever started checkout. Update it in
+    // place instead of inserting a second row for the same user.
+    const { error } = existing
+      ? await this.supabaseService
+          .getClient()
+          .from('subscriptions')
+          .update({ stripe_customer_id: customer.id })
+          .eq('user_id', userId)
+      : await this.supabaseService.getClient().from('subscriptions').insert({
+          user_id: userId,
+          stripe_customer_id: customer.id,
+          status: 'incomplete',
+        });
     if (error) throw error;
 
     return customer.id;
@@ -122,7 +128,9 @@ export class BillingService {
 
   async createPortalSession(userId: string) {
     const row = await this.getRow(userId);
-    if (!row) {
+    if (!row?.stripe_customer_id) {
+      // Can happen for a coach who only has admin-granted access and has
+      // never actually subscribed through Stripe — nothing to manage yet.
       throw new BadRequestException('No billing account yet — subscribe first');
     }
 
@@ -137,7 +145,14 @@ export class BillingService {
     const row = await this.getRow(userId);
     const status = (row?.status as SubscriptionStatus | undefined) ?? 'none';
     const enforced = this.isEnforced();
-    const hasAccess = !enforced || status === 'active' || status === 'trialing';
+    const overrideActive =
+      !!row?.admin_override_until &&
+      new Date(row.admin_override_until).getTime() > Date.now();
+    const hasAccess =
+      !enforced ||
+      overrideActive ||
+      status === 'active' ||
+      status === 'trialing';
 
     const { data: settings } = await this.supabaseService
       .getClient()
@@ -154,6 +169,7 @@ export class BillingService {
       discountPercentOff: row?.discount_percent_off ?? null,
       plan: (row?.plan as Plan | undefined) ?? null,
       yearlyDiscountPercentOff: settings?.yearly_discount_percent_off ?? null,
+      adminOverrideUntil: row?.admin_override_until ?? null,
       enforced,
       hasAccess,
     };

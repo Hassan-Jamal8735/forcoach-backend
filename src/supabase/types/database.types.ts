@@ -439,6 +439,7 @@ export type Database = {
       };
       subscriptions: {
         Row: {
+          admin_override_until: string | null;
           cancel_at_period_end: boolean;
           created_at: string;
           current_period_end: string | null;
@@ -448,12 +449,13 @@ export type Database = {
           plan: string | null;
           promo_code: string | null;
           status: string;
-          stripe_customer_id: string;
+          stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
           updated_at: string;
           user_id: string;
         };
         Insert: {
+          admin_override_until?: string | null;
           cancel_at_period_end?: boolean;
           created_at?: string;
           current_period_end?: string | null;
@@ -463,12 +465,13 @@ export type Database = {
           plan?: string | null;
           promo_code?: string | null;
           status?: string;
-          stripe_customer_id: string;
+          stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           updated_at?: string;
           user_id: string;
         };
         Update: {
+          admin_override_until?: string | null;
           cancel_at_period_end?: boolean;
           created_at?: string;
           current_period_end?: string | null;
@@ -478,7 +481,7 @@ export type Database = {
           plan?: string | null;
           promo_code?: string | null;
           status?: string;
-          stripe_customer_id?: string;
+          stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
           updated_at?: string;
           user_id?: string;
