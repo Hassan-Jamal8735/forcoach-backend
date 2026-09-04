@@ -9,6 +9,10 @@ export type InvoicePdfCoach = {
   email: string;
   siret: string | null;
   iban: string | null;
+  bankAccountName: string | null;
+  bankName: string | null;
+  bankAddress: string | null;
+  bankPhone: string | null;
 };
 
 export type CurrencyCode = 'EUR' | 'USD' | 'GBP';
@@ -324,10 +328,30 @@ export function InvoicePdf({
           </View>
         </View>
 
-        {coach.iban && (
+        {(coach.iban ||
+          coach.bankAccountName ||
+          coach.bankName ||
+          coach.bankAddress ||
+          coach.bankPhone) && (
           <View style={styles.paymentDetails}>
             <Text style={styles.partyLabel}>Payment details</Text>
-            <Text style={styles.partyLine}>IBAN: {coach.iban}</Text>
+            {coach.bankAccountName && (
+              <Text style={styles.partyLine}>
+                Account holder: {coach.bankAccountName}
+              </Text>
+            )}
+            {coach.bankName && (
+              <Text style={styles.partyLine}>Bank: {coach.bankName}</Text>
+            )}
+            {coach.iban && (
+              <Text style={styles.partyLine}>IBAN: {coach.iban}</Text>
+            )}
+            {coach.bankAddress && (
+              <Text style={styles.partyLine}>Address: {coach.bankAddress}</Text>
+            )}
+            {coach.bankPhone && (
+              <Text style={styles.partyLine}>Phone: {coach.bankPhone}</Text>
+            )}
           </View>
         )}
 

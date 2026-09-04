@@ -100,6 +100,11 @@ export class InvoicesController {
           email: request.user.email ?? '',
           siret: (metadata?.siret as string | undefined) ?? null,
           iban: (metadata?.iban as string | undefined) ?? null,
+          bankAccountName:
+            (metadata?.bank_account_name as string | undefined) ?? null,
+          bankName: (metadata?.bank_name as string | undefined) ?? null,
+          bankAddress: (metadata?.bank_address as string | undefined) ?? null,
+          bankPhone: (metadata?.bank_phone as string | undefined) ?? null,
         },
         currency:
           metadata?.currency === 'USD' || metadata?.currency === 'GBP'
