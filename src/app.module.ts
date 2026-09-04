@@ -15,6 +15,7 @@ import { SupportModule } from './support/support.module';
 import { AdminModule } from './admin/admin.module';
 import { BillingModule } from './billing/billing.module';
 import { SearchModule } from './search/search.module';
+import { BlogModule } from './blog/blog.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SearchModule } from './search/search.module';
     AdminModule,
     BillingModule,
     SearchModule,
+    BlogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
