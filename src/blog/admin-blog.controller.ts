@@ -12,6 +12,7 @@ import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { BlogService } from './blog.service';
 import { UpsertBlogPostDto } from './dto/upsert-blog-post.dto';
+import { UploadBlogImageDto } from './dto/upload-blog-image.dto';
 
 @Controller('admin/blog')
 @UseGuards(SupabaseAuthGuard, AdminGuard)
@@ -36,5 +37,10 @@ export class AdminBlogController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.blogService.remove(id);
+  }
+
+  @Post('images')
+  uploadImage(@Body() dto: UploadBlogImageDto) {
+    return this.blogService.uploadImage(dto);
   }
 }

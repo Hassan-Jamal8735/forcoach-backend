@@ -15,8 +15,7 @@ export class UpsertBlogPostDto {
   // the public URL (/blog/:slug).
   @IsString()
   @Matches(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
-    message:
-      'Slug can only contain lowercase letters, numbers, and hyphens.',
+    message: 'Slug can only contain lowercase letters, numbers, and hyphens.',
   })
   slug!: string;
 

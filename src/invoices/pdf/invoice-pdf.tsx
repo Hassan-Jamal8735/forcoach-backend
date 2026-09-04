@@ -277,7 +277,7 @@ export function InvoicePdf({
           <View style={styles.tableHeaderRow}>
             <Text style={[styles.tableHeaderText, styles.colDate]}>Date</Text>
             <Text style={[styles.tableHeaderText, styles.colTitle]}>Class</Text>
-            <Text style={[styles.tableHeaderText, styles.colHours]}>Hours</Text>
+            <Text style={[styles.tableHeaderText, styles.colHours]}>Duration</Text>
             <Text style={[styles.tableHeaderText, styles.colRate]}>Rate</Text>
             <Text style={[styles.tableHeaderText, styles.colAmount]}>Amount</Text>
           </View>
@@ -290,7 +290,7 @@ export function InvoicePdf({
                 {item.title}
               </Text>
               <Text style={[styles.tableCellText, styles.colHours]}>
-                {item.hours.toFixed(2)}
+                {Math.round(item.hours * 60)} min
               </Text>
               <Text style={[styles.tableCellText, styles.colRate]}>
                 {formatCurrency(item.rate)}

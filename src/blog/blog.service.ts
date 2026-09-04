@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { UpsertBlogPostDto } from './dto/upsert-blog-post.dto';
+import { UploadBlogImageDto } from './dto/upload-blog-image.dto';
 import type {
   TablesInsert,
   TablesUpdate,
@@ -9,9 +16,48 @@ import type {
 type BlogPostInsert = TablesInsert<'blog_posts'>;
 type BlogPostUpdate = TablesUpdate<'blog_posts'>;
 
+const BLOG_IMAGES_BUCKET = 'blog-images';
+const EXT_BY_CONTENT_TYPE: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
 @Injectable()
 export class BlogService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly config: ConfigService,
+  ) {}
+
+  async uploadImage(dto: UploadBlogImageDto): Promise<{ url: string }> {
+    const ext = EXT_BY_CONTENT_TYPE[dto.contentType];
+    if (!ext) throw new BadRequestException('Unsupported image type');
+
+    const buffer = Buffer.from(dto.dataBase64, 'base64');
+    // 8MB cap — plenty for a blog article image, small enough to keep
+    // uploads and page loads fast.
+    if (buffer.byteLength > 8 * 1024 * 1024) {
+      throw new BadRequestException('Image must be under 8MB');
+    }
+
+    const path = `${randomUUID()}.${ext}`;
+    const { error } = await this.supabaseService
+      .getClient()
+      .storage.from(BLOG_IMAGES_BUCKET)
+      .upload(path, buffer, { contentType: dto.contentType });
+    if (error) throw error;
+
+    // SUPABASE_URL is the internal Docker-network address (http://supabase-kong:8000),
+    // not reachable from a browser — SUPABASE_DOMAIN is the public one, same
+    // pattern as SITE_DOMAIN in the Caddyfile.
+    const supabaseDomain = this.config.getOrThrow<string>('SUPABASE_DOMAIN');
+    return {
+      url: `https://${supabaseDomain}/storage/v1/object/public/${BLOG_IMAGES_BUCKET}/${path}`,
+    };
+  }
 
   async listPublished() {
     const { data, error } = await this.supabaseService
