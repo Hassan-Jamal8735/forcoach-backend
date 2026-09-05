@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { BillingModule } from './billing/billing.module';
 import { SearchModule } from './search/search.module';
 import { BlogModule } from './blog/blog.module';
+import { DigestModule } from './digest/digest.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { BlogModule } from './blog/blog.module';
     BillingModule,
     SearchModule,
     BlogModule,
+    DigestModule,
   ],
   controllers: [AppController],
   providers: [AppService],

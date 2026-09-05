@@ -8,5 +8,6 @@ import { EarningsService } from './earnings.service';
   imports: [SupabaseModule, AuthModule],
   controllers: [EarningsController],
   providers: [EarningsService],
+  exports: [EarningsService],
 })
 export class EarningsModule {}
