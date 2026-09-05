@@ -24,6 +24,11 @@ export class AdminBlogController {
     return this.blogService.adminList();
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.blogService.adminFindOne(id);
+  }
+
   @Post()
   create(@Body() dto: UpsertBlogPostDto) {
     return this.blogService.create(dto);

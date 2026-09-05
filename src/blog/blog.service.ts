@@ -116,6 +116,19 @@ export class BlogService {
     return data;
   }
 
+  async adminFindOne(id: string) {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('blog_posts')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new NotFoundException('Post not found');
+    return data;
+  }
+
   async create(dto: UpsertBlogPostDto) {
     const row: BlogPostInsert = {
       title: dto.title,
