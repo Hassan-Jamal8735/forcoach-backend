@@ -66,6 +66,42 @@ export class AdminService {
         .in('status', ['active', 'trialing']);
     if (subsError) throw subsError;
 
+    const { data: subscriptions, error: subsListError } =
+      await this.supabaseService
+        .getClient()
+        .from('subscriptions')
+        .select('user_id, status');
+    if (subsListError) throw subsListError;
+
+    const subscriptionBreakdown = this.buildSubscriptionBreakdown(
+      subscriptions ?? [],
+    );
+
+    const thirtyDaysAgo = new Date(now - 30 * DAY_MS).toISOString();
+    const { data: recentEvents, error: recentEventsError } =
+      await this.supabaseService
+        .getClient()
+        .from('events')
+        .select('user_id')
+        .gte('created_at', thirtyDaysAgo);
+    if (recentEventsError) throw recentEventsError;
+
+    const activeUserIds = new Set((recentEvents ?? []).map((e) => e.user_id));
+    const activeCoaches30d = activeUserIds.size;
+    const inactiveCoaches = Math.max(0, users.length - activeCoaches30d);
+
+    // Paying but not logging classes — the clearest churn signal we have:
+    // money is being spent but the product isn't being used, so it's an
+    // easy cancel whenever the coach gets around to it.
+    const payingUserIds = new Set(
+      (subscriptions ?? [])
+        .filter((s) => s.status === 'active' || s.status === 'trialing')
+        .map((s) => s.user_id),
+    );
+    const atRiskCount = Array.from(payingUserIds).filter(
+      (id) => !activeUserIds.has(id),
+    ).length;
+
     return {
       totalUsers: users.length,
       newUsersThisWeek: newThisWeek,
@@ -76,6 +112,10 @@ export class AdminService {
       unreadSupportCount: unreadSupportCount ?? 0,
       activeSubscriptions: activeSubscriptions ?? 0,
       signupTrend: this.buildSignupTrend(users),
+      subscriptionBreakdown,
+      activeCoaches30d,
+      inactiveCoaches,
+      atRiskCount,
     };
   }
 
@@ -102,6 +142,18 @@ export class AdminService {
     }
 
     return days.map((date) => ({ date, count: counts.get(date) ?? 0 }));
+  }
+
+  private buildSubscriptionBreakdown(
+    subscriptions: { status: string }[],
+  ): { status: string; count: number }[] {
+    const counts = new Map<string, number>();
+    for (const s of subscriptions) {
+      counts.set(s.status, (counts.get(s.status) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
   }
 
   /**

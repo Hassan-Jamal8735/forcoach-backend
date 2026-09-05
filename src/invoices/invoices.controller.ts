@@ -6,12 +6,14 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { renderToBuffer } from '@react-pdf/renderer';
+import { ZipArchive } from 'archiver';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
 import { InvoicesService } from './invoices.service';
@@ -28,6 +30,48 @@ export class InvoicesController {
   @Get()
   list(@Req() request: AuthenticatedRequest) {
     return this.invoicesService.list(request.user.id);
+  }
+
+  // Registered before ':id' so "export" isn't swallowed as an invoice id.
+  @Get('export')
+  async exportZip(
+    @Req() request: AuthenticatedRequest,
+    @Query('year') year: string,
+    @Res() res: Response,
+  ) {
+    const targetYear = Number(year) || new Date().getFullYear();
+    const all = await this.invoicesService.list(request.user.id);
+    const invoices = all.filter(
+      (inv) =>
+        inv.status !== 'draft' &&
+        new Date(inv.issue_date ?? inv.created_at).getFullYear() === targetYear,
+    );
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="invoices-${targetYear}.zip"`,
+    );
+
+    const archive = new ZipArchive({ zlib: { level: 9 } });
+    archive.pipe(res);
+
+    const coach = this.buildCoachInfo(request);
+    const currency = this.buildCurrency(request);
+
+    for (const inv of invoices) {
+      const { lineItems } = await this.invoicesService.findOne(
+        request.user.id,
+        inv.id,
+      );
+      const buffer = await renderToBuffer(
+        InvoicePdf({ invoice: inv, lineItems, coach, currency }),
+      );
+      const filename = `${inv.invoice_number ?? inv.id}.pdf`;
+      archive.append(buffer, { name: filename });
+    }
+
+    await archive.finalize();
   }
 
   @Get(':id')
@@ -90,26 +134,12 @@ export class InvoicesController {
       id,
     );
 
-    const metadata = request.user.user_metadata as Record<string, unknown>;
     const buffer = await renderToBuffer(
       InvoicePdf({
         invoice,
         lineItems,
-        coach: {
-          fullName: (metadata?.full_name as string | undefined) ?? '',
-          email: request.user.email ?? '',
-          siret: (metadata?.siret as string | undefined) ?? null,
-          iban: (metadata?.iban as string | undefined) ?? null,
-          bankAccountName:
-            (metadata?.bank_account_name as string | undefined) ?? null,
-          bankName: (metadata?.bank_name as string | undefined) ?? null,
-          bankAddress: (metadata?.bank_address as string | undefined) ?? null,
-          bankPhone: (metadata?.bank_phone as string | undefined) ?? null,
-        },
-        currency:
-          metadata?.currency === 'USD' || metadata?.currency === 'GBP'
-            ? metadata.currency
-            : 'EUR',
+        coach: this.buildCoachInfo(request),
+        currency: this.buildCurrency(request),
       }),
     );
 
@@ -117,5 +147,27 @@ export class InvoicesController {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
+  }
+
+  private buildCoachInfo(request: AuthenticatedRequest) {
+    const metadata = request.user.user_metadata as Record<string, unknown>;
+    return {
+      fullName: (metadata?.full_name as string | undefined) ?? '',
+      email: request.user.email ?? '',
+      siret: (metadata?.siret as string | undefined) ?? null,
+      iban: (metadata?.iban as string | undefined) ?? null,
+      bankAccountName:
+        (metadata?.bank_account_name as string | undefined) ?? null,
+      bankName: (metadata?.bank_name as string | undefined) ?? null,
+      bankAddress: (metadata?.bank_address as string | undefined) ?? null,
+      bankPhone: (metadata?.bank_phone as string | undefined) ?? null,
+    };
+  }
+
+  private buildCurrency(request: AuthenticatedRequest) {
+    const metadata = request.user.user_metadata as Record<string, unknown>;
+    return metadata?.currency === 'USD' || metadata?.currency === 'GBP'
+      ? metadata.currency
+      : ('EUR' as const);
   }
 }
