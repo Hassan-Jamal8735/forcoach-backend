@@ -1,3 +1,7 @@
+// Must be the very first import — Sentry needs to patch Node's internals
+// before anything else in the app creates its own instances of them.
+import './instrument';
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
