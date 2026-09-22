@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Cron } from '@nestjs/schedule';
 import { SupabaseService } from '../supabase/supabase.service';
 import { EarningsService } from '../earnings/earnings.service';
 import { MailService } from '../support/mail.service';
@@ -27,9 +26,9 @@ export class DigestScheduler {
     private readonly config: ConfigService,
   ) {}
 
-  // Monday 8:00 UTC — a fixed cron string rather than a named
-  // CronExpression, since there isn't a built-in "weekly" constant.
-  @Cron('0 8 * * 1')
+  // Disabled per Aya's request. Left in place (not deleted) in case the
+  // weekly digest is turned back on later — just re-import Cron from
+  // '@nestjs/schedule' and re-add `@Cron('0 8 * * 1')` above this method.
   async sendWeeklyDigests() {
     const adminEmail = this.config.get<string>(
       'ADMIN_EMAIL',
