@@ -1,3 +1,4 @@
+import { SubscriptionGuard } from '../access/subscription.guard';
 import {
   Body,
   Controller,
@@ -19,7 +20,7 @@ import { BulkDeleteEventsDto } from './dto/bulk-delete-events.dto';
 import { BulkAssignEventsDto } from './dto/bulk-assign-events.dto';
 
 @Controller('events')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(SupabaseAuthGuard, SubscriptionGuard)
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 

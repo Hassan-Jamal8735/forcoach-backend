@@ -1,10 +1,11 @@
+import { SubscriptionGuard } from '../access/subscription.guard';
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
 import { SearchService } from './search.service';
 
 @Controller('search')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(SupabaseAuthGuard, SubscriptionGuard)
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 

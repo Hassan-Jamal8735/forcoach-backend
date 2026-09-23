@@ -1,3 +1,4 @@
+import { SubscriptionGuard } from '../access/subscription.guard';
 import {
   Body,
   Controller,
@@ -23,7 +24,7 @@ import { UpdateLineItemDto } from './dto/update-line-item.dto';
 import { InvoicePdf } from './pdf/invoice-pdf';
 
 @Controller('invoices')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(SupabaseAuthGuard, SubscriptionGuard)
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 

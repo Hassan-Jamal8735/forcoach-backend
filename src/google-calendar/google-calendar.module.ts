@@ -1,3 +1,4 @@
+import { AccessModule } from '../access/access.module';
 import { Module } from '@nestjs/common';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { AuthModule } from '../auth/auth.module';
@@ -8,7 +9,7 @@ import { GoogleOAuthStateService } from './google-oauth-state.service';
 import { GoogleCalendarSyncScheduler } from './google-calendar-sync.scheduler';
 
 @Module({
-  imports: [SupabaseModule, AuthModule],
+  imports: [SupabaseModule, AuthModule, AccessModule],
   controllers: [GoogleAuthController, GoogleCalendarController],
   providers: [
     GoogleCalendarService,

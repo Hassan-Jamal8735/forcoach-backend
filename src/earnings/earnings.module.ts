@@ -1,3 +1,4 @@
+import { AccessModule } from '../access/access.module';
 import { Module } from '@nestjs/common';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { AuthModule } from '../auth/auth.module';
@@ -5,7 +6,7 @@ import { EarningsController } from './earnings.controller';
 import { EarningsService } from './earnings.service';
 
 @Module({
-  imports: [SupabaseModule, AuthModule],
+  imports: [SupabaseModule, AuthModule, AccessModule],
   controllers: [EarningsController],
   providers: [EarningsService],
   exports: [EarningsService],

@@ -1,3 +1,4 @@
+import { SubscriptionGuard } from '../access/subscription.guard';
 import {
   Body,
   Controller,
@@ -48,6 +49,7 @@ export class GoogleCalendarController {
   }
 
   @Post('sync')
+  @UseGuards(SubscriptionGuard)
   sync(@Req() request: AuthenticatedRequest) {
     return this.googleCalendarService.sync(request.user.id);
   }

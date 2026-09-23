@@ -1,3 +1,4 @@
+import { SubscriptionGuard } from '../access/subscription.guard';
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
@@ -8,7 +9,7 @@ import {
 } from './dto/earnings-query.dto';
 
 @Controller('earnings')
-@UseGuards(SupabaseAuthGuard)
+@UseGuards(SupabaseAuthGuard, SubscriptionGuard)
 export class EarningsController {
   constructor(private readonly earningsService: EarningsService) {}
 

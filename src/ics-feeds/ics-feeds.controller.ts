@@ -1,3 +1,4 @@
+import { SubscriptionGuard } from '../access/subscription.guard';
 import {
   Body,
   Controller,
@@ -27,6 +28,7 @@ export class IcsFeedsController {
   }
 
   @Post('upload')
+  @UseGuards(SubscriptionGuard)
   upload(@Req() request: AuthenticatedRequest, @Body() dto: UploadIcsDto) {
     return this.icsFeedsService.importUpload(request.user.id, dto);
   }
@@ -51,6 +53,7 @@ export class IcsFeedsController {
   }
 
   @Post(':id/sync')
+  @UseGuards(SubscriptionGuard)
   sync(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
     return this.icsFeedsService.sync(request.user.id, id);
   }
