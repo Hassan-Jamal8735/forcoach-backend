@@ -1,3 +1,4 @@
+import { isAllowedAppReturnUrl } from '../common/app-return';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type Stripe from 'stripe';
@@ -84,7 +85,24 @@ export class BillingService {
     return customer.id;
   }
 
-  async createCheckoutSession(userId: string, email: string, plan: Plan) {
+  // Stripe only accepts http(s) return URLs, so mobile flows go through a small
+  // web page that immediately hands off to the app's deep link.
+  private returnUrl(
+    fallbackPath: string,
+    returnTo: string | undefined,
+    status: string,
+  ) {
+    if (!isAllowedAppReturnUrl(returnTo))
+      return `${this.webOrigin}${fallbackPath}`;
+    return `${this.webOrigin}/mobile-return?${new URLSearchParams({ status, to: returnTo }).toString()}`;
+  }
+
+  async createCheckoutSession(
+    userId: string,
+    email: string,
+    plan: Plan,
+    returnTo?: string,
+  ) {
     const customerId = await this.getOrCreateCustomer(userId, email);
 
     // Stripe won't allow allow_promotion_codes and a pre-applied discount on
@@ -101,8 +119,16 @@ export class BillingService {
       ...(yearlyCouponId
         ? { discounts: [{ coupon: yearlyCouponId }] }
         : { allow_promotion_codes: true }),
-      success_url: `${this.webOrigin}/settings?billing=success`,
-      cancel_url: `${this.webOrigin}/settings?billing=cancelled`,
+      success_url: this.returnUrl(
+        '/settings?billing=success',
+        returnTo,
+        'success',
+      ),
+      cancel_url: this.returnUrl(
+        '/settings?billing=cancelled',
+        returnTo,
+        'cancelled',
+      ),
       subscription_data: {
         trial_period_days: TRIAL_DAYS,
         metadata: { forcoach_user_id: userId },
@@ -126,7 +152,7 @@ export class BillingService {
     return data?.yearly_discount_coupon_id ?? null;
   }
 
-  async createPortalSession(userId: string) {
+  async createPortalSession(userId: string, returnTo?: string) {
     const row = await this.getRow(userId);
     if (!row?.stripe_customer_id) {
       // Can happen for a coach who only has admin-granted access and has
@@ -136,7 +162,7 @@ export class BillingService {
 
     const session = await this.stripe.billingPortal.sessions.create({
       customer: row.stripe_customer_id,
-      return_url: `${this.webOrigin}/settings`,
+      return_url: this.returnUrl('/settings', returnTo, 'portal'),
     });
     return { url: session.url };
   }

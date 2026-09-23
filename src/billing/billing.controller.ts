@@ -14,6 +14,7 @@ import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import type { AuthenticatedRequest } from '../auth/supabase-auth.guard';
 import { BillingService } from './billing.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { PortalDto } from './dto/portal.dto';
 
 @Controller('billing')
 export class BillingController {
@@ -26,13 +27,17 @@ export class BillingController {
       request.user.id,
       request.user.email ?? '',
       dto.plan,
+      dto.returnTo,
     );
   }
 
   @Post('portal')
   @UseGuards(SupabaseAuthGuard)
-  portal(@Req() request: AuthenticatedRequest) {
-    return this.billingService.createPortalSession(request.user.id);
+  portal(@Req() request: AuthenticatedRequest, @Body() dto: PortalDto) {
+    return this.billingService.createPortalSession(
+      request.user.id,
+      dto.returnTo,
+    );
   }
 
   @Get('status')

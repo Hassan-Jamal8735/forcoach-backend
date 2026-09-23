@@ -45,9 +45,9 @@ export class GoogleCalendarService {
     );
   }
 
-  buildAuthUrl(userId: string): string {
+  buildAuthUrl(userId: string, returnTo: string | null = null): string {
     const client = this.buildOAuthClient();
-    const state = this.stateService.create(userId);
+    const state = this.stateService.create(userId, returnTo);
     return client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
@@ -56,11 +56,11 @@ export class GoogleCalendarService {
     });
   }
 
-  async handleCallback(code: string, state: string): Promise<void> {
-    const userId = this.stateService.consume(state);
-    if (!userId)
-      throw new BadRequestException('Invalid or expired OAuth state');
+  consumeState(state: string) {
+    return this.stateService.consume(state);
+  }
 
+  async handleCallback(code: string, userId: string): Promise<void> {
     const client = this.buildOAuthClient();
     const { tokens } = await client.getToken(code);
     if (!tokens.refresh_token) {
