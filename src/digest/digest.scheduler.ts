@@ -8,6 +8,8 @@ const CURRENCY_SYMBOL: Record<string, string> = {
   EUR: '€',
   USD: '$',
   GBP: '£',
+  AED: 'AED ',
+  KWD: 'KWD ',
 };
 
 function money(amount: number, currency: string): string {

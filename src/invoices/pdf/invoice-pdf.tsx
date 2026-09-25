@@ -15,7 +15,7 @@ export type InvoicePdfCoach = {
   bankPhone: string | null;
 };
 
-export type CurrencyCode = 'EUR' | 'USD' | 'GBP';
+export type CurrencyCode = 'EUR' | 'USD' | 'GBP' | 'AED' | 'KWD';
 
 const CHARCOAL = '#1c1c1c';
 const MUTED = '#6e5f5c';

@@ -167,8 +167,7 @@ export class InvoicesController {
 
   private buildCurrency(request: AuthenticatedRequest) {
     const metadata = request.user.user_metadata as Record<string, unknown>;
-    return metadata?.currency === 'USD' || metadata?.currency === 'GBP'
-      ? metadata.currency
-      : ('EUR' as const);
+    const supported = ['EUR', 'USD', 'GBP', 'AED', 'KWD'] as const;
+    return supported.find((c) => c === metadata?.currency) ?? 'EUR';
   }
 }
